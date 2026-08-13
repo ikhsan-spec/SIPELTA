@@ -218,6 +218,32 @@
         </div>
     </section>
 
+    <!-- DALAM PROSES — AKAN JATUH TEMPO (PERINGATAN DINI) -->
+    <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-gradient-to-r from-sky-700 to-sky-600 text-white px-5 py-3 flex justify-between items-center flex-wrap gap-2">
+            <h2 class="font-display text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-hourglass-half text-sky-100"></i> Dalam Proses — Akan Jatuh Tempo
+            </h2>
+            <span id="prosesJtFilterBadge" class="text-[10px] text-sky-100">klik baris untuk lihat detail</span>
+        </div>
+        <p class="text-[11px] text-slate-500 px-5 pt-3">
+            Peringatan dini: berkas berstatus Dalam Proses yang tenggat waktunya paling dekat, diurutkan dari
+            yang paling mendesak — supaya bisa dituntaskan sebelum benar-benar jatuh tempo.
+        </p>
+        <div class="p-4 table-scroll overflow-x-auto max-h-96">
+            <table class="w-full text-[11px] text-left text-slate-600">
+                <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200 sticky top-0 bg-white">
+                    <tr>
+                        <th class="p-2 text-center">Peringkat</th><th class="p-2">Nama Kegiatan</th>
+                        <th class="p-2">Posisi Saat Ini</th><th class="p-2">Tanggal Jatuh Tempo</th>
+                        <th class="p-2 text-center">Akan Jatuh Tempo</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyProsesJt" class="divide-y divide-slate-100"></tbody>
+            </table>
+        </div>
+    </section>
+
     <!-- RINCIAN DATA BERKAS + DIAGRAM DONAT -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <section id="sectionRincian" class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
@@ -302,6 +328,14 @@
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
+        <div class="px-4 md:px-5 pt-3 flex items-center gap-2 flex-wrap flex-shrink-0">
+            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Filter Nama Kegiatan:</label>
+            <select id="kpiModalKegiatanFilter" onchange="renderKpiModalContent()"
+                    class="bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg p-1.5 focus:ring-2 focus:ring-teal-500 max-w-[300px]">
+                <option value="ALL">Semua Kegiatan</option>
+            </select>
+            <span class="text-[10px] text-slate-400">— hanya menampilkan data dari angka yang Anda klik, tidak mengarah ke posisi/kategori lain</span>
+        </div>
         <div class="p-4 md:p-5 overflow-y-auto grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div class="lg:col-span-2 table-scroll overflow-x-auto border border-slate-200 rounded-xl max-h-[60vh]">
                 <table class="w-full text-[11px] text-left text-slate-600">
@@ -315,7 +349,7 @@
                 </table>
             </div>
             <div class="border border-slate-200 rounded-xl p-4 flex flex-col items-center">
-                <span id="kpiModalDonutLabel" class="text-[10px] text-slate-400 mb-2 text-center">Kelompok: Posisi Terakhir</span>
+                <span id="kpiModalDonutLabel" class="text-[10px] text-slate-400 mb-2 text-center">Kelompok: Nama Kegiatan</span>
                 <div class="w-full max-w-[200px] aspect-square relative">
                     <canvas id="kpiModalDonutChart"></canvas>
                     <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -635,6 +669,7 @@
         renderKegiatanTable(data);
         renderRankingTable(data);
         renderArahan(data);
+        renderProsesJatuhTempoTable(data);
         renderDetailTable(data);
         renderDonut(data);
         clearSkeletons();
@@ -882,6 +917,35 @@
                 </div>`;
         });
         el.innerHTML = html;
+    }
+
+    // Tabel "Dalam Proses — Akan Jatuh Tempo": peringatan dini berkas yang MASIH Dalam Proses (belum
+    // lewat tenggat) tapi tenggatnya paling dekat, diurutkan naik dari yang paling mendesak. Klik baris
+    // membuka detailnya di Rincian Data Berkas (pakai No. Berkas persis, bukan sekadar nama kegiatan,
+    // supaya tidak ambigu kalau ada beberapa berkas dengan nama kegiatan yang sama).
+    function renderProsesJatuhTempoTable(data) {
+        let proses = data.filter(d => d.status === "Proses" && d.jatuhTempo)
+            .sort((a, b) => a.jatuhTempo.getTime() - b.jatuhTempo.getTime());
+
+        let html = "";
+        proses.forEach((d, idx) => {
+            let rank = idx + 1;
+            let diffDays = Math.round((d.jatuhTempo.getTime() - worldNow.getTime()) / (1000 * 60 * 60 * 24));
+            let akanBadge;
+            if (diffDays <= 0) akanBadge = `<span class="text-[10px] font-bold text-coral-600 whitespace-nowrap">Hari ini</span>`;
+            else if (diffDays <= 7) akanBadge = `<span class="text-[10px] font-bold text-amber-600 whitespace-nowrap">H-${diffDays}</span>`;
+            else akanBadge = `<span class="text-[10px] text-slate-400 whitespace-nowrap">H-${diffDays}</span>`;
+            let rankBadgeCls = rank <= 3 ? "bg-sky-600 text-white" : "bg-slate-200 text-slate-600";
+            html += `
+                <tr class="hover:bg-slate-50 cursor-pointer" onclick="gotoNomor('${d.nomor.replace(/'/g, "\\'")}')" title="Klik untuk lihat detail berkas No. ${d.nomor} di Rincian Data Berkas">
+                    <td class="p-2 text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold ${rankBadgeCls}">${rank}</span></td>
+                    <td class="p-2 font-medium text-slate-700">${d.namaKegiatan}</td>
+                    <td class="p-2 text-slate-500">${d.posisiTerakhir}</td>
+                    <td class="p-2 text-slate-500">${getTglLabel(d.jatuhTempo)}</td>
+                    <td class="p-2 text-center">${akanBadge}</td>
+                </tr>`;
+        });
+        document.getElementById('tbodyProsesJt').innerHTML = html || `<tr><td colspan="5" class="p-4 text-center text-slate-400">Tidak ada berkas Dalam Proses dengan tanggal jatuh tempo.</td></tr>`;
     }
 
     // Klik baris peringkat: filter Rincian Data Berkas & Diagram Donat ke posisi tsb KHUSUS status Jatuh Tempo
@@ -1147,11 +1211,41 @@
         return { title: '', data: [] };
     }
 
+    let kpiModalBaseData = [];   // data mentah sesuai angka KPI yang diklik — TIDAK berubah oleh dropdown kegiatan
+    let kpiModalKind = null;
+
     function openKpiModal(kind) {
-        let { title, data, baru } = getKpiModalData(kind);
+        let { title, data } = getKpiModalData(kind);
+        kpiModalBaseData = data;
+        kpiModalKind = kind;
         document.getElementById('kpiModalTitle').innerText = title;
+
+        // Dropdown Nama Kegiatan HANYA berisi kegiatan yang benar-benar ada di dalam angka yang diklik —
+        // sehingga tidak mungkin menampilkan data dari status/kategori lain yang tidak relevan.
+        let kegiatanCounts = {};
+        data.forEach(d => { kegiatanCounts[d.namaKegiatan] = (kegiatanCounts[d.namaKegiatan] || 0) + 1; });
+        let kegiatanEntries = Object.entries(kegiatanCounts).sort((a, b) => b[1] - a[1]);
+        let sel = document.getElementById('kpiModalKegiatanFilter');
+        sel.innerHTML = `<option value="ALL">Semua Kegiatan (${fmt(data.length)})</option>` +
+            kegiatanEntries.map(([k, v]) => `<option value="${k.replace(/"/g, '&quot;')}">${k} (${fmt(v)})</option>`).join("");
+        sel.value = "ALL";
+
+        renderKpiModalContent();
+        document.getElementById('kpiModal').classList.remove('hidden');
+    }
+    function closeKpiModal() { document.getElementById('kpiModal').classList.add('hidden'); }
+
+    // Dipanggil ulang setiap dropdown Nama Kegiatan berubah — data SELALU diambil dari kpiModalBaseData
+    // (angka yang diklik), tidak pernah dari dataAll langsung, supaya tidak bisa "melenceng" ke data lain.
+    function renderKpiModalContent() {
+        let selKeg = document.getElementById('kpiModalKegiatanFilter').value;
+        let data = selKeg === "ALL" ? kpiModalBaseData : kpiModalBaseData.filter(d => d.namaKegiatan === selKeg);
+
         let subtitle = `${fmt(data.length)} berkas`;
-        if (kind === 'baru' && baru) subtitle += ` — hari ini: ${fmt(baru.today.length)}, kemarin: ${fmt(baru.yesterday.length)}`;
+        if (kpiModalKind === 'baru') {
+            let b = getBerkasBaru(data);
+            subtitle += ` — hari ini: ${fmt(b.today.length)}, kemarin: ${fmt(b.yesterday.length)}`;
+        }
         document.getElementById('kpiModalSubtitle').innerText = subtitle;
 
         let rows = data.map(d => `
@@ -1165,15 +1259,20 @@
             </tr>`).join("");
         document.getElementById('kpiModalTbody').innerHTML = rows || `<tr><td colspan="6" class="p-4 text-center text-slate-400">Tidak ada data</td></tr>`;
 
-        renderKpiModalDonut(data, kind);
-        document.getElementById('kpiModal').classList.remove('hidden');
+        // Saat "Semua Kegiatan" dipilih: diagram dikelompokkan per Nama Kegiatan (atau per Status khusus utk
+        // KPI "Berkas Baru", karena isinya campuran status) — TIDAK PERNAH per Posisi di tahap ini, supaya
+        // tidak ada kesan datanya "mengarah ke posisi lain" yang tidak terkait.
+        // Begitu satu Nama Kegiatan dipilih dari dropdown, diagram baru boleh menunjukkan Posisi Terakhir —
+        // karena saat itu cakupannya sudah jelas & tunggal (satu jenis kegiatan saja), tidak lagi ambigu.
+        let mode = selKeg !== "ALL" ? 'posisi' : (kpiModalKind === 'baru' ? 'status' : 'kegiatan');
+        renderKpiModalDonut(data, mode);
     }
-    function closeKpiModal() { document.getElementById('kpiModal').classList.add('hidden'); }
 
-    function renderKpiModalDonut(data, kind) {
-        let field = kind === 'baru' ? 'status' : 'posisiTerakhir';
+    function renderKpiModalDonut(data, mode) {
+        let field = mode === 'status' ? 'status' : (mode === 'posisi' ? 'posisiTerakhir' : 'namaKegiatan');
+        let labelText = mode === 'status' ? 'Kelompok: Status Berkas' : (mode === 'posisi' ? 'Kelompok: Posisi Terakhir' : 'Kelompok: Nama Kegiatan');
         let labelEl = document.getElementById('kpiModalDonutLabel');
-        if (labelEl) labelEl.innerText = kind === 'baru' ? "Kelompok: Status Berkas" : "Kelompok: Posisi Terakhir";
+        if (labelEl) labelEl.innerText = labelText;
 
         let grouped = {};
         data.forEach(d => {
