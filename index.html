@@ -341,7 +341,7 @@
                 <table class="w-full text-[11px] text-left text-slate-600">
                     <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200 sticky top-0 bg-white">
                         <tr>
-                            <th class="p-2">No. Berkas</th><th class="p-2">Kegiatan</th><th class="p-2">Posisi Terakhir</th>
+                            <th class="p-2">No. Berkas</th><th class="p-2">Tahun</th><th class="p-2">Kegiatan</th><th class="p-2">Posisi Terakhir</th>
                             <th class="p-2 text-center">Status</th><th class="p-2 text-center">Terdaftar</th><th class="p-2 text-right">PNBP</th>
                         </tr>
                     </thead>
@@ -1251,13 +1251,14 @@
         let rows = data.map(d => `
             <tr class="hover:bg-slate-50">
                 <td class="p-2 font-bold text-teal-900">${d.nomor}</td>
+                <td class="p-2 text-slate-500">${d.tahun}</td>
                 <td class="p-2">${d.namaKegiatan}</td>
                 <td class="p-2 text-slate-500">${d.posisiTerakhir}</td>
                 <td class="p-2 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${statusBadgeClass(d.status)}">${statusLabel(d.status)}</span></td>
                 <td class="p-2 text-center text-slate-500">${d.tanggalTerdaftar ? getTglLabel(d.tanggalTerdaftar) : '-'}</td>
                 <td class="p-2 text-right font-semibold">${formatRupiah(d.totalPnbp)}</td>
             </tr>`).join("");
-        document.getElementById('kpiModalTbody').innerHTML = rows || `<tr><td colspan="6" class="p-4 text-center text-slate-400">Tidak ada data</td></tr>`;
+        document.getElementById('kpiModalTbody').innerHTML = rows || `<tr><td colspan="7" class="p-4 text-center text-slate-400">Tidak ada data</td></tr>`;
 
         // Saat "Semua Kegiatan" dipilih: diagram dikelompokkan per Nama Kegiatan (atau per Status khusus utk
         // KPI "Berkas Baru", karena isinya campuran status) — TIDAK PERNAH per Posisi di tahap ini, supaya
