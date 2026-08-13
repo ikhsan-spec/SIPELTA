@@ -153,7 +153,7 @@
             </div>
             <div class="p-4 table-scroll overflow-x-auto max-h-80">
                 <table class="w-full text-[11px] text-left text-slate-600">
-                    <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200">
+                    <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200 sticky top-0 bg-white">
                         <tr><th class="p-2">Posisi Terakhir</th><th class="p-2 text-right">Dalam Proses</th><th class="p-2 text-right">Jatuh Tempo</th><th class="p-2 text-right">Total</th></tr>
                     </thead>
                     <tbody id="tbodyPosisi" class="divide-y divide-slate-100"></tbody>
@@ -170,7 +170,7 @@
             </div>
             <div class="p-4 table-scroll overflow-x-auto max-h-80">
                 <table class="w-full text-[11px] text-left text-slate-600">
-                    <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200">
+                    <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200 sticky top-0 bg-white">
                         <tr><th class="p-2">Nama Kegiatan</th><th class="p-2 text-right">Jumlah</th><th class="p-2 text-right">Nilai PNBP</th></tr>
                     </thead>
                     <tbody id="tbodyKegiatan" class="divide-y divide-slate-100"></tbody>
@@ -193,7 +193,7 @@
         </p>
         <div class="p-4 table-scroll overflow-x-auto max-h-96">
             <table class="w-full text-[11px] text-left text-slate-600">
-                <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200">
+                <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200 sticky top-0 bg-white">
                     <tr>
                         <th class="p-2 text-center">Peringkat</th><th class="p-2">Posisi Terakhir</th>
                         <th class="p-2 text-right">Jumlah Jatuh Tempo</th><th class="p-2">Porsi dari Total</th>
@@ -368,6 +368,11 @@
                 </select>
                 <p id="renaksiSelectEmptyNote" class="hidden text-[10px] text-slate-400 mt-1">Tidak ada berkas Jatuh Tempo pada data yang sedang ditampilkan.</p>
             </div>
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nama Petugas yang Mengisi <span class="text-coral-500">*</span></label>
+                <input id="renaksiFieldNamaPetugas" type="text" placeholder="Nama lengkap Anda (sebagai bentuk pertanggungjawaban)..."
+                       class="w-full mt-1 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2.5 focus:ring-2 focus:ring-coral-500">
+            </div>
             <div class="grid grid-cols-1 gap-2">
                 <div>
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nama Kegiatan</label>
@@ -432,13 +437,13 @@
     // Selama RENAKSI_WEBAPP_URL belum diisi, formulir tetap bisa dibuka & diisi untuk dicoba, namun submit akan
     // menampilkan pesan agar setup di atas diselesaikan dulu (tidak ada data yang hilang secara diam-diam).
     const RENAKSI_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzQfcy-hZ76V2jgXzeN-8vLuCiPs6Uy4oZJP3tDSUMDgkx3zVFosBHHvVBjv3eimG5oJw/exec";
-    const RENAKSI_SHEET_GID = "468191224";   // gid tab "Renaksi" pada Google Sheet, utk membaca kembali riwayatnya
+    const RENAKSI_SHEET_GID = "755069120";   // gid tab "Renaksi" pada Google Sheet, utk membaca kembali riwayatnya
     const RENAKSI_CSV_URL = RENAKSI_SHEET_GID
         ? `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${RENAKSI_SHEET_GID}`
         : null;
     // Kolom pada tab "Renaksi" (dibuat otomatis oleh renaksi-webapp.gs, urutan HARUS sama):
-    // 0 Timestamp | 1 No. Berkas | 2 Nama Kegiatan | 3 Posisi Terakhir | 4 Alasan Jatuh Tempo
-    // 5 Kondisi Saat Ini | 6 Rencana Aksi Penyelesaian | 7 Estimasi Tanggal Selesai
+    // 0 Timestamp | 1 No. Berkas | 2 Nama Kegiatan | 3 Posisi Terakhir | 4 Nama Petugas
+    // 5 Alasan Jatuh Tempo | 6 Kondisi Saat Ini | 7 Rencana Aksi Penyelesaian | 8 Estimasi Tanggal Selesai
 
     // ============ STATE ============
     let dataAll = [];
@@ -736,9 +741,13 @@
         return "Dalam Proses";
     }
 
+    // Tabel ini HANYA menghitung berkas non-Ditutup — supaya total di sini selalu cocok dengan
+    // KPI "Total Berkas Aktif" (yang juga mengecualikan Ditutup). Berkas Ditutup punya rekapnya
+    // sendiri lewat kartu KPI "Ditutup" di header, tidak perlu dobel dihitung di sini.
     function renderPosisiTable(data) {
+        let aktif = data.filter(d => d.status !== "Ditutup");
         let grouped = {};
-        data.forEach(d => {
+        aktif.forEach(d => {
             let k = d.posisiTerakhir;
             if (!grouped[k]) grouped[k] = { proses: 0, jatuhTempo: 0, total: 0 };
             grouped[k].total++;
@@ -763,8 +772,9 @@
     }
 
     function renderKegiatanTable(data) {
+        let aktif = data.filter(d => d.status !== "Ditutup");
         let grouped = {};
-        data.forEach(d => {
+        aktif.forEach(d => {
             let k = d.namaKegiatan;
             if (!grouped[k]) grouped[k] = { count: 0, pnbp: 0 };
             grouped[k].count++;
@@ -978,7 +988,8 @@
                         <span class="text-[10px] font-bold ${i === 0 ? 'text-emerald-700' : 'text-slate-500'} uppercase tracking-wider">${i === 0 ? 'Renaksi Terbaru' : 'Riwayat Sebelumnya'}</span>
                         <span class="text-[10px] text-slate-400">${r.timestamp ? r.timestamp.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}</span>
                     </div>
-                    <p class="text-[11px] text-slate-600"><b>Alasan Jatuh Tempo:</b> ${r.alasan || '-'}</p>
+                    <p class="text-[11px] text-slate-600"><b>Petugas:</b> ${r.namaPetugas || '-'}</p>
+                    <p class="text-[11px] text-slate-600 mt-1"><b>Alasan Jatuh Tempo:</b> ${r.alasan || '-'}</p>
                     <p class="text-[11px] text-slate-600 mt-1"><b>Kondisi Saat Ini:</b> ${r.kondisi || '-'}</p>
                     <p class="text-[11px] text-slate-600 mt-1"><b>Rencana Aksi:</b> ${r.rencanaAksi || '-'}</p>
                     ${r.estimasiSelesai ? `<p class="text-[11px] text-slate-600 mt-1"><b>Estimasi Selesai:</b> ${r.estimasiSelesai}</p>` : ''}
@@ -1006,6 +1017,7 @@
         document.getElementById('renaksiSelectEmptyNote').classList.toggle('hidden', jatuhTempoList.length > 0);
 
         // reset field isian setiap kali formulir dibuka
+        document.getElementById('renaksiFieldNamaPetugas').value = "";
         document.getElementById('renaksiFieldAlasan').value = "";
         document.getElementById('renaksiFieldKondisi').value = "";
         document.getElementById('renaksiFieldRencana').value = "";
@@ -1032,6 +1044,7 @@
 
     async function submitRenaksi() {
         let nomor = document.getElementById('renaksiSelectNomor').value;
+        let namaPetugas = document.getElementById('renaksiFieldNamaPetugas').value.trim();
         let alasan = document.getElementById('renaksiFieldAlasan').value.trim();
         let kondisi = document.getElementById('renaksiFieldKondisi').value.trim();
         let rencanaAksi = document.getElementById('renaksiFieldRencana').value.trim();
@@ -1045,6 +1058,7 @@
         }
 
         if (!nomor) { showStatus("Pilih No. Berkas terlebih dahulu.", false); return; }
+        if (!namaPetugas) { showStatus("Nama Petugas wajib diisi sebagai bentuk pertanggungjawaban.", false); return; }
         if (!alasan || !rencanaAksi) { showStatus("Alasan Jatuh Tempo dan Rencana Aksi wajib diisi.", false); return; }
         if (!RENAKSI_WEBAPP_URL) {
             showStatus("Belum tersambung ke Google Sheet — admin perlu mengisi RENAKSI_WEBAPP_URL (lihat komentar setup di bagian atas kode). Data belum terkirim.", false);
@@ -1058,7 +1072,7 @@
 
         let payload = new URLSearchParams({
             noBerkas: nomor, namaKegiatan: d ? d.namaKegiatan : "", posisi: d ? d.posisiTerakhir : "",
-            alasan, kondisi, rencanaAksi, estimasiSelesai
+            namaPetugas, alasan, kondisi, rencanaAksi, estimasiSelesai
         });
 
         try {
@@ -1067,7 +1081,7 @@
             if (!renaksiMap[nomor]) renaksiMap[nomor] = [];
             renaksiMap[nomor].unshift({
                 timestamp: new Date(), nomor, namaKegiatan: d ? d.namaKegiatan : "", posisi: d ? d.posisiTerakhir : "",
-                alasan, kondisi, rencanaAksi, estimasiSelesai
+                namaPetugas, alasan, kondisi, rencanaAksi, estimasiSelesai
             });
             showStatus("Renaksi berhasil dikirim & tersimpan ke Google Sheet.", true);
             renderDetailPage();
@@ -1096,14 +1110,15 @@
             let lines = splitCsvRows(text);
             for (let i = 1; i < lines.length; i++) {
                 let cols = parseCsvLine(lines[i]);
-                if (cols.length < 7) continue;
+                if (cols.length < 8) continue;
                 let nomor = (cols[1] || "").trim();
                 if (!nomor) continue;
                 let entry = {
                     timestamp: new Date((cols[0] || "").trim()) || null,
                     nomor, namaKegiatan: (cols[2] || "").trim(), posisi: (cols[3] || "").trim(),
-                    alasan: (cols[4] || "").trim(), kondisi: (cols[5] || "").trim(),
-                    rencanaAksi: (cols[6] || "").trim(), estimasiSelesai: (cols[7] || "").trim()
+                    namaPetugas: (cols[4] || "").trim(),
+                    alasan: (cols[5] || "").trim(), kondisi: (cols[6] || "").trim(),
+                    rencanaAksi: (cols[7] || "").trim(), estimasiSelesai: (cols[8] || "").trim()
                 };
                 if (!renaksiMap[nomor]) renaksiMap[nomor] = [];
                 renaksiMap[nomor].push(entry);
