@@ -83,7 +83,7 @@
         </div>
 
         <!-- KPI CARDS (angka dapat diklik utk lihat rincian tabel & diagram) -->
-        <div class="relative grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-4">
+        <div class="relative grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mt-4">
             <button type="button" onclick="openKpiModal('total')" class="text-left bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/10 hover:bg-white/20 hover:border-white/30 transition cursor-pointer">
                 <span class="text-[10px] text-teal-200 block uppercase tracking-wider">Total Berkas Aktif</span>
                 <span id="kpiTotal" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
@@ -104,6 +104,11 @@
             <button type="button" onclick="openKpiModal('selesai')" class="text-left bg-emerald-500/20 backdrop-blur-md p-3 rounded-xl border border-emerald-400/20 hover:bg-emerald-500/30 hover:border-emerald-400/40 transition cursor-pointer">
                 <span class="text-[10px] text-emerald-200 block uppercase tracking-wider">Selesai (Diserahkan)</span>
                 <span id="kpiSelesai" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
+            </button>
+            <button type="button" onclick="openKpiModal('ditutup')" class="text-left bg-slate-400/20 backdrop-blur-md p-3 rounded-xl border border-slate-300/20 hover:bg-slate-400/30 hover:border-slate-300/40 transition cursor-pointer">
+                <span class="text-[10px] text-slate-200 block uppercase tracking-wider">Ditutup</span>
+                <span id="kpiDitutup" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
+                <span id="kpiDitutupPnbp" class="text-[9px] text-slate-100/80 block mt-0.5">PNBP: Rp 0</span>
             </button>
             <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/10">
                 <span class="text-[10px] text-teal-200 block uppercase tracking-wider">Total Nilai PNBP</span>
@@ -226,12 +231,13 @@
                 <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500"></span>Dalam Proses</span>
                 <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-coral-500"></span>Jatuh Tempo</span>
                 <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Selesai (Diserahkan)</span>
+                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-400"></span>Ditutup</span>
             </div>
             <div class="p-4 table-scroll overflow-x-auto max-h-[420px] flex-1">
                 <table class="w-full text-[11px] text-left text-slate-600">
                     <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200 sticky top-0 bg-white">
                         <tr>
-                            <th class="p-2">No. Berkas</th><th class="p-2">Kegiatan</th><th class="p-2">Pemohon</th>
+                            <th class="p-2">No. Berkas</th><th class="p-2">Tahun</th><th class="p-2">Kegiatan</th><th class="p-2">Pemohon</th>
                             <th class="p-2">Posisi Terakhir</th><th class="p-2 text-center">Status</th><th class="p-2 text-center">Estimasi</th>
                             <th class="p-2 text-right">PNBP</th><th class="p-2 text-center no-print">Renaksi</th>
                         </tr>
@@ -538,15 +544,20 @@
             let tanggalTerdaftar = parseTglIndo(cols[3]);
             let jatuhTempo = parseTglIndo(cols[4]);
             let tanggalDiserahkan = parseTglIndo(cols[6]);
+            let keterangan = (cols[11] || "").trim();
 
+            // Status "Ditutup" (dari kolom KETERANGAN) diprioritaskan di atas status lain — berkas yang
+            // sudah ditutup secara administratif TIDAK ikut dihitung sebagai Dalam Proses/Jatuh Tempo,
+            // meski tanggal jatuh temponya sendiri sudah lewat.
             let status;
-            if (tanggalDiserahkan) status = "Selesai";
+            if (keterangan === "Ditutup") status = "Ditutup";
+            else if (tanggalDiserahkan) status = "Selesai";
             else if (jatuhTempo && worldNow && jatuhTempo.getTime() < worldNow.getTime()) status = "JatuhTempo";
             else status = "Proses";
 
             parsed.push({
                 no: (cols[0] || "").trim(), nomor, tahun: (cols[2] || "").trim(),
-                tanggalTerdaftar, jatuhTempo, tanggalDiserahkan,
+                tanggalTerdaftar, jatuhTempo, tanggalDiserahkan, keterangan,
                 namaKegiatan: (cols[7] || "").trim() || "Lainnya",
                 namaPemohon: (cols[8] || "").trim(),
                 posisiTerakhir: (cols[9] || "").trim() || "Tidak Diketahui",
@@ -575,7 +586,8 @@
             if (parsed.length === 0) throw new Error('CSV kosong/tidak ada baris valid');
             // Status dihitung ulang sekarang worldNow sudah pasti terisi (parseRows tahap pertama mungkin belum punya worldNow saat pemanggilan awal)
             parsed.forEach(d => {
-                if (d.tanggalDiserahkan) d.status = "Selesai";
+                if (d.keterangan === "Ditutup") d.status = "Ditutup";
+                else if (d.tanggalDiserahkan) d.status = "Selesai";
                 else if (d.jatuhTempo && d.jatuhTempo.getTime() < worldNow.getTime()) d.status = "JatuhTempo";
                 else d.status = "Proses";
             });
@@ -655,6 +667,10 @@
         document.getElementById('kpiSelesai').innerText = fmt(data.filter(d => d.status === "Selesai").length);
         document.getElementById('kpiPnbp').innerText = formatRupiah(data.reduce((s, d) => s + d.totalPnbp, 0));
 
+        let ditutup = data.filter(d => d.status === "Ditutup");
+        document.getElementById('kpiDitutup').innerText = fmt(ditutup.length);
+        document.getElementById('kpiDitutupPnbp').innerText = 'PNBP: ' + formatRupiah(ditutup.reduce((s, d) => s + d.totalPnbp, 0));
+
         let baru = getBerkasBaru(data);
         document.getElementById('kpiBaru').innerText = fmt(baru.all.length);
         let ket = document.getElementById('kpiBaruKet');
@@ -705,11 +721,13 @@
     function statusBadgeClass(status) {
         if (status === "Selesai") return "bg-emerald-100 text-emerald-700";
         if (status === "JatuhTempo") return "bg-coral-100 text-coral-700";
+        if (status === "Ditutup") return "bg-slate-200 text-slate-600";
         return "bg-sky-100 text-sky-700";
     }
     function statusLabel(status) {
         if (status === "Selesai") return "Selesai";
         if (status === "JatuhTempo") return "Jatuh Tempo";
+        if (status === "Ditutup") return "Ditutup";
         return "Dalam Proses";
     }
 
@@ -867,7 +885,7 @@
     }
 
     function urgencyBadge(d) {
-        if (!d.jatuhTempo || d.status === "Selesai") return "";
+        if (!d.jatuhTempo || d.status === "Selesai" || d.status === "Ditutup") return "";
         let diffDays = Math.round((d.jatuhTempo.getTime() - worldNow.getTime()) / (1000 * 60 * 60 * 24));
         if (diffDays < 0) return `<span class="text-[10px] font-bold text-coral-600 whitespace-nowrap">Terlambat ${fmt(Math.abs(diffDays))}h</span>`;
         if (diffDays === 0) return `<span class="text-[10px] font-bold text-coral-600 whitespace-nowrap">Hari ini</span>`;
@@ -898,6 +916,7 @@
             html += `
                 <tr class="hover:bg-slate-50 align-top">
                     <td class="p-2 font-bold text-teal-900">${d.nomor}</td>
+                    <td class="p-2 text-slate-500">${d.tahun}</td>
                     <td class="p-2">${d.namaKegiatan}</td>
                     <td class="p-2 text-slate-500">${d.namaPemohon || '-'}</td>
                     <td class="p-2 text-slate-500">${d.posisiTerakhir}</td>
@@ -910,7 +929,7 @@
                     <td class="p-2 text-center no-print">${renaksiCellHtml(d)}</td>
                 </tr>`;
         });
-        document.getElementById('tbodyDetail').innerHTML = html || `<tr><td colspan="8" class="p-4 text-center text-slate-400">Data tidak ditemukan</td></tr>`;
+        document.getElementById('tbodyDetail').innerHTML = html || `<tr><td colspan="9" class="p-4 text-center text-slate-400">Data tidak ditemukan</td></tr>`;
         document.getElementById('totalRowsBadge').innerText = `${fmt(data.length)} Data`;
 
         let showEnd = Math.min(start + PAGE_SIZE, data.length);
@@ -1100,6 +1119,7 @@
         if (kind === 'proses') return { title: 'Dalam Proses', data: base.filter(d => d.status === "Proses") };
         if (kind === 'jatuhTempo') return { title: 'Jatuh Tempo', data: base.filter(d => d.status === "JatuhTempo") };
         if (kind === 'selesai') return { title: 'Selesai (Diserahkan)', data: base.filter(d => d.status === "Selesai") };
+        if (kind === 'ditutup') return { title: 'Ditutup', data: base.filter(d => d.status === "Ditutup") };
         if (kind === 'baru') {
             let b = getBerkasBaru(base);
             return { title: 'Berkas Baru (Hari Ini & Kemarin)', data: b.all, baru: b };
@@ -1190,11 +1210,11 @@
     }
 
     function renderDonutByStatus(data) {
-        let counts = { Proses: 0, JatuhTempo: 0, Selesai: 0 };
+        let counts = { Proses: 0, JatuhTempo: 0, Selesai: 0, Ditutup: 0 };
         data.forEach(d => { counts[d.status] = (counts[d.status] || 0) + 1; });
-        let labels = ["Dalam Proses", "Jatuh Tempo", "Selesai (Diserahkan)"];
-        let values = [counts.Proses, counts.JatuhTempo, counts.Selesai];
-        let colors = ["#0ea5e9", "#e05f21", "#10b981"];
+        let labels = ["Dalam Proses", "Jatuh Tempo", "Selesai (Diserahkan)", "Ditutup"];
+        let values = [counts.Proses, counts.JatuhTempo, counts.Selesai, counts.Ditutup];
+        let colors = ["#0ea5e9", "#e05f21", "#10b981", "#94a3b8"];
         let total = data.length;
 
         document.getElementById('donutCenterTotal').innerText = fmt(total);
