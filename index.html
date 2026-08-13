@@ -661,11 +661,15 @@
     }
 
     function renderKpi(data) {
-        document.getElementById('kpiTotal').innerText = fmt(data.length);
+        // Total Berkas Aktif & Total Nilai PNBP MENGECUALIKAN berkas berstatus Ditutup — supaya
+        // angka "aktif" benar-benar hanya berkas yang masih berjalan (Proses/Jatuh Tempo/Selesai),
+        // bukan tercampur dengan berkas yang sudah ditutup administratif.
+        let aktif = data.filter(d => d.status !== "Ditutup");
+        document.getElementById('kpiTotal').innerText = fmt(aktif.length);
         document.getElementById('kpiProses').innerText = fmt(data.filter(d => d.status === "Proses").length);
         document.getElementById('kpiJatuhTempo').innerText = fmt(data.filter(d => d.status === "JatuhTempo").length);
         document.getElementById('kpiSelesai').innerText = fmt(data.filter(d => d.status === "Selesai").length);
-        document.getElementById('kpiPnbp').innerText = formatRupiah(data.reduce((s, d) => s + d.totalPnbp, 0));
+        document.getElementById('kpiPnbp').innerText = formatRupiah(aktif.reduce((s, d) => s + d.totalPnbp, 0));
 
         let ditutup = data.filter(d => d.status === "Ditutup");
         document.getElementById('kpiDitutup').innerText = fmt(ditutup.length);
@@ -687,11 +691,12 @@
     function renderNarrative(data) {
         let el = document.getElementById('narrativeInsight');
         if (!el) return;
+        let aktif = data.filter(d => d.status !== "Ditutup");
         let proses = data.filter(d => d.status === "Proses");
         let jatuhTempo = data.filter(d => d.status === "JatuhTempo");
         let selesai = data.filter(d => d.status === "Selesai");
 
-        let main = `Total <b>${fmt(data.length)} berkas aktif</b> tercatat, senilai <b>${formatRupiah(data.reduce((s, d) => s + d.totalPnbp, 0))}</b> — <b>${fmt(proses.length)} dalam proses</b>, <b>${fmt(jatuhTempo.length)} jatuh tempo</b>, <b>${fmt(selesai.length)} selesai diserahkan</b>.`;
+        let main = `Total <b>${fmt(aktif.length)} berkas aktif</b> tercatat, senilai <b>${formatRupiah(aktif.reduce((s, d) => s + d.totalPnbp, 0))}</b> — <b>${fmt(proses.length)} dalam proses</b>, <b>${fmt(jatuhTempo.length)} jatuh tempo</b>, <b>${fmt(selesai.length)} selesai diserahkan</b>.`;
 
         let jatuhTempoSentence;
         if (jatuhTempo.length > 0) {
@@ -1115,7 +1120,7 @@
     // ============ MODAL KPI (rincian tabel + diagram per kartu KPI) ============
     function getKpiModalData(kind) {
         let base = getFiltered();
-        if (kind === 'total') return { title: 'Total Berkas Aktif', data: base };
+        if (kind === 'total') return { title: 'Total Berkas Aktif', data: base.filter(d => d.status !== "Ditutup") };
         if (kind === 'proses') return { title: 'Dalam Proses', data: base.filter(d => d.status === "Proses") };
         if (kind === 'jatuhTempo') return { title: 'Jatuh Tempo', data: base.filter(d => d.status === "JatuhTempo") };
         if (kind === 'selesai') return { title: 'Selesai (Diserahkan)', data: base.filter(d => d.status === "Selesai") };
