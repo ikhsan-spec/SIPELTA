@@ -137,7 +137,7 @@
         </div>
         <div class="relative w-full md:w-80">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-            <input type="text" id="searchInput" placeholder="Cari No. Berkas / Nama Kegiatan / Pemohon / Posisi..."
+            <input type="text" id="searchInput" placeholder="Cari No. Berkas / Nama Kegiatan / Pemohon / Posisi... (pisahkan dengan koma untuk cari beberapa sekaligus)"
                    class="w-full bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg pl-9 pr-3 py-2 focus:ring-2 focus:ring-teal-500">
         </div>
     </section>
@@ -647,12 +647,25 @@
     function getFiltered() {
         let yr = document.getElementById('filterTahun').value;
         let keg = document.getElementById('filterKegiatan').value;
-        let q = document.getElementById('searchInput').value.trim().toLowerCase();
+        // Mendukung pencarian LEBIH DARI SATU berkas sekaligus — pisahkan dengan koma, titik-koma,
+        // atau baris baru (mis. hasil paste beberapa No.Berkas). Spasi SENGAJA tidak dipakai sebagai
+        // pemisah, supaya pencarian frasa seperti "Kepala Seksi" tetap berfungsi sebagai satu istilah utuh.
+        // Tiap term dicocokkan dengan logika OR (baris cocok kalau salah satu term ditemukan di salah
+        // satu kolom No.Berkas/Kegiatan/Pemohon/Posisi).
+        let qRaw = document.getElementById('searchInput').value.trim();
+        let terms = qRaw.split(/[,;\n]+/).map(t => t.trim().toLowerCase()).filter(Boolean);
+        if (terms.length === 0 && qRaw) terms = [qRaw.toLowerCase()];
         return dataAll.filter(d => {
             if (yr !== "ALL" && d.tahun !== yr) return false;
             if (keg !== "ALL" && d.namaKegiatan !== keg) return false;
-            if (q && !((d.nomor || "").toLowerCase().includes(q) || (d.namaKegiatan || "").toLowerCase().includes(q) ||
-                       (d.namaPemohon || "").toLowerCase().includes(q) || (d.posisiTerakhir || "").toLowerCase().includes(q))) return false;
+            if (terms.length > 0) {
+                let nomor = (d.nomor || "").toLowerCase();
+                let kegiatan = (d.namaKegiatan || "").toLowerCase();
+                let pemohon = (d.namaPemohon || "").toLowerCase();
+                let posisi = (d.posisiTerakhir || "").toLowerCase();
+                let matchAny = terms.some(t => nomor.includes(t) || kegiatan.includes(t) || pemohon.includes(t) || posisi.includes(t));
+                if (!matchAny) return false;
+            }
             if (activePosisi && d.posisiTerakhir !== activePosisi) return false;
             if (activeKegiatan && d.namaKegiatan !== activeKegiatan) return false;
             if (activeStatus && d.status !== activeStatus) return false;
