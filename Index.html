@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistem Informasi Pelayanan Pertanahan - Kantah Kabupaten Lebak</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    teal:  { 50:'#effcfa', 100:'#c9f3ec', 300:'#67c9ba', 400:'#3aab9a', 500:'#20897a', 600:'#186e62', 700:'#14584f', 800:'#0f453e', 900:'#0a2f2a' },
+                    coral: { 50:'#fff3ec', 100:'#ffdfc9', 200:'#ffbe93', 300:'#ff9a5c', 400:'#f2793a', 500:'#e05f21', 600:'#b84a19', 700:'#8f3813' }
+                },
+                fontFamily: { display: ['"Sora"', 'sans-serif'] }
+            }
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    body { font-family: 'Manrope', system-ui, -apple-system, sans-serif; background-color: #f5f7f7; }
+    h1, h2, .font-display { font-family: 'Sora', sans-serif; }
+    .table-scroll::-webkit-scrollbar { height: 6px; width: 6px; }
+    .table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .skeleton { color: transparent !important; background: linear-gradient(90deg, #e2e8f0 25%, #eef2f7 37%, #e2e8f0 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite; border-radius: 4px; display: inline-block; min-width: 2.5em; }
+    @keyframes skeleton-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+    .reveal { animation: fadeInUp 0.5s ease both; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    /* Signature: garis alur/pipeline tipis di header — merepresentasikan alur proses berkas dari loket ke penyerahan */
+    .flow-texture {
+        background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 2px, transparent 2px, transparent 26px);
+    }
+    @media print { .no-print { display: none !important; } body { background: #fff; } }
+</style>
+</head>
+<body class="p-4 md:p-8 text-[#182422]">
+
+<div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- HEADER -->
+    <header class="reveal relative overflow-hidden bg-gradient-to-br from-teal-900 via-teal-800 to-teal-900 text-white p-6 rounded-2xl shadow-xl">
+        <div class="absolute inset-0 flow-texture pointer-events-none"></div>
+        <div class="relative flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <span class="bg-coral-400/25 text-coral-100 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">MONEV PELAYANAN PERTANAHAN KANTAH KAB. LEBAK</span>
+                <h1 class="font-display text-xl md:text-2xl font-bold mt-2 leading-tight">
+                    Sistem Informasi Pelayanan Pertanahan
+                </h1>
+                <p class="text-teal-200 text-sm mt-1">Monitoring &amp; Evaluasi Berkas Aktif — Kantor Pertanahan Kabupaten Lebak</p>
+            </div>
+            <div class="text-right flex flex-col items-end no-print">
+                <div class="flex items-center gap-2 flex-wrap justify-end">
+                    <button id="btnRefreshData" class="bg-coral-500 hover:bg-coral-400 text-white text-xs font-bold px-3 py-2 rounded-lg transition shadow flex items-center gap-2">
+                        <i class="fa-solid fa-rotate"></i> Refresh Data
+                    </button>
+                    <button id="btnExportExcel" class="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 py-2 rounded-lg transition shadow flex items-center gap-2">
+                        <i class="fa-solid fa-file-excel"></i> Excel
+                    </button>
+                    <button id="btnPrintPdf" class="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 py-2 rounded-lg transition shadow flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> Cetak/PDF
+                    </button>
+                </div>
+                <span id="dataSourceLabel" class="text-[10px] text-teal-200 mt-1 flex items-center gap-1.5 justify-end">
+                    <span id="liveDot" class="hidden w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></span>
+                    <span id="dataSourceText">Memuat data...</span>
+                </span>
+                <span id="todayLabel" class="text-[11px] font-bold text-coral-200 mt-0.5">Tgl. Memuat...</span>
+            </div>
+        </div>
+
+        <!-- INSIGHT NARATIF -->
+        <div class="relative mt-4 bg-white/10 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-2.5">
+            <i class="fa-solid fa-lightbulb text-coral-300 text-sm flex-shrink-0"></i>
+            <span id="narrativeInsight" class="text-xs md:text-sm text-teal-50">
+                <span class="skeleton">Menyusun ringkasan&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;</span>
+            </span>
+        </div>
+
+        <!-- KPI CARDS -->
+        <div class="relative grid grid-cols-2 lg:grid-cols-5 gap-3 mt-4">
+            <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/10">
+                <span class="text-[10px] text-teal-200 block uppercase tracking-wider">Total Berkas Aktif</span>
+                <span id="kpiTotal" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
+            </div>
+            <div class="bg-sky-500/20 backdrop-blur-md p-3 rounded-xl border border-sky-400/20">
+                <span class="text-[10px] text-sky-200 block uppercase tracking-wider">Dalam Proses</span>
+                <span id="kpiProses" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
+            </div>
+            <div class="bg-coral-500/20 backdrop-blur-md p-3 rounded-xl border border-coral-400/20">
+                <span class="text-[10px] text-coral-200 block uppercase tracking-wider">Jatuh Tempo</span>
+                <span id="kpiJatuhTempo" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
+            </div>
+            <div class="bg-emerald-500/20 backdrop-blur-md p-3 rounded-xl border border-emerald-400/20">
+                <span class="text-[10px] text-emerald-200 block uppercase tracking-wider">Selesai (Diserahkan)</span>
+                <span id="kpiSelesai" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
+            </div>
+            <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/10">
+                <span class="text-[10px] text-teal-200 block uppercase tracking-wider">Total Nilai PNBP</span>
+                <span id="kpiPnbp" class="text-lg md:text-xl font-bold text-white skeleton">Rp 0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- FILTER BAR -->
+    <section class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between no-print">
+        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-filter text-teal-600 text-sm"></i>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Filter:</span>
+            </div>
+            <select id="filterTahun" class="bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg p-2 focus:ring-2 focus:ring-teal-500">
+                <option value="ALL" selected>Semua Tahun</option>
+            </select>
+            <select id="filterKegiatan" class="bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg p-2 focus:ring-2 focus:ring-teal-500 max-w-[220px]">
+                <option value="ALL" selected>Semua Kegiatan</option>
+            </select>
+            <button id="btnResetFilter" class="text-xs text-teal-700 hover:underline font-semibold">Tampilkan Semua</button>
+        </div>
+        <div class="relative w-full md:w-80">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+            <input type="text" id="searchInput" placeholder="Cari No. Berkas / Nama Kegiatan / Pemohon / Posisi..."
+                   class="w-full bg-slate-50 border border-slate-300 text-slate-700 text-xs rounded-lg pl-9 pr-3 py-2 focus:ring-2 focus:ring-teal-500">
+        </div>
+    </section>
+
+    <!-- REKAP: POSISI TERAKHIR & PELAYANAN TERBANYAK -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+            <div class="bg-teal-800 text-white px-5 py-3 flex justify-between items-center">
+                <h2 class="font-display text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-route text-coral-300"></i> Rekapitulasi Posisi Terakhir
+                </h2>
+                <span id="posisiFilterBadge" class="text-[10px] text-teal-200">klik baris untuk filter</span>
+            </div>
+            <div class="p-4 table-scroll overflow-x-auto max-h-80">
+                <table class="w-full text-[11px] text-left text-slate-600">
+                    <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200">
+                        <tr><th class="p-2">Posisi Terakhir</th><th class="p-2 text-right">Dalam Proses</th><th class="p-2 text-right">Jatuh Tempo</th><th class="p-2 text-right">Total</th></tr>
+                    </thead>
+                    <tbody id="tbodyPosisi" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+            <div class="bg-coral-600 text-white px-5 py-3 flex justify-between items-center">
+                <h2 class="font-display text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-coral-100"></i> Pelayanan Terbanyak (Nama Kegiatan)
+                </h2>
+                <span id="kegiatanFilterBadge" class="text-[10px] text-coral-100">klik baris untuk filter</span>
+            </div>
+            <div class="p-4 table-scroll overflow-x-auto max-h-80">
+                <table class="w-full text-[11px] text-left text-slate-600">
+                    <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200">
+                        <tr><th class="p-2">Nama Kegiatan</th><th class="p-2 text-right">Jumlah</th><th class="p-2 text-right">Nilai PNBP</th></tr>
+                    </thead>
+                    <tbody id="tbodyKegiatan" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- PERINGKAT JATUH TEMPO PER POSISI — ALAT EVALUASI TANGGUNG JAWAB -->
+    <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-gradient-to-r from-coral-700 to-coral-600 text-white px-5 py-3 flex justify-between items-center flex-wrap gap-2">
+            <h2 class="font-display text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-ranking-star text-coral-100"></i> Peringkat Jatuh Tempo per Posisi — Evaluasi Kinerja
+            </h2>
+            <span id="rankingFilterBadge" class="text-[10px] text-coral-100">klik baris untuk filter</span>
+        </div>
+        <p class="text-[11px] text-slate-500 px-5 pt-3">
+            Peringkat ini menjadi dasar evaluasi kinerja per posisi pelaksana — semakin tinggi peringkat, semakin besar
+            penekanan tanggung jawab untuk segera menuntaskan berkas yang telah melewati batas waktu.
+        </p>
+        <div class="p-4 table-scroll overflow-x-auto max-h-96">
+            <table class="w-full text-[11px] text-left text-slate-600">
+                <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200">
+                    <tr>
+                        <th class="p-2 text-center">Peringkat</th><th class="p-2">Posisi Terakhir</th>
+                        <th class="p-2 text-right">Jumlah Jatuh Tempo</th><th class="p-2">Porsi dari Total</th>
+                        <th class="p-2">Catatan Evaluasi</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyRanking" class="divide-y divide-slate-100"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- RINCIAN DATA BERKAS + DIAGRAM DONAT -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <section id="sectionRincian" class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+            <div class="bg-teal-900 text-white px-5 py-3 flex justify-between items-center">
+                <h2 class="font-display text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-table text-coral-300"></i> Rincian Data Berkas
+                </h2>
+                <span id="totalRowsBadge" class="bg-coral-400/25 text-coral-100 text-[10px] font-bold px-2 py-0.5 rounded-full">0 Data</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-3 text-[10px] text-slate-500">
+                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500"></span>Dalam Proses</span>
+                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-coral-500"></span>Jatuh Tempo</span>
+                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Selesai (Diserahkan)</span>
+            </div>
+            <div class="p-4 table-scroll overflow-x-auto max-h-[420px] flex-1">
+                <table class="w-full text-[11px] text-left text-slate-600">
+                    <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-200 sticky top-0 bg-white">
+                        <tr>
+                            <th class="p-2">No. Berkas</th><th class="p-2">Kegiatan</th><th class="p-2">Pemohon</th>
+                            <th class="p-2">Posisi Terakhir</th><th class="p-2 text-center">Status</th><th class="p-2 text-center">Estimasi</th>
+                            <th class="p-2 text-right">PNBP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyDetail" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+            <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100 text-xs text-slate-500 flex-wrap gap-2 no-print">
+                <span id="paginationInfo">Menampilkan 0 dari 0 data</span>
+                <div class="flex items-center gap-1">
+                    <button id="btnPagePrev" class="w-7 h-7 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
+                    <span id="paginationPageLabel" class="px-2 font-semibold text-slate-700">1 / 1</span>
+                    <button id="btnPageNext" class="w-7 h-7 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
+            <h2 class="font-display text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 text-center flex items-center gap-2">
+                <i class="fa-solid fa-chart-pie text-teal-600"></i> Diagram Donat
+            </h2>
+            <span id="donutModeLabel" class="text-[10px] text-slate-400 mb-3 text-center">Kelompok: Status Berkas</span>
+            <div class="w-full max-w-[260px] aspect-square relative">
+                <canvas id="statusDonutChart"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span id="donutCenterTotal" class="text-2xl font-extrabold text-slate-800">0</span>
+                    <span class="text-[10px] text-slate-400 uppercase tracking-wider">Total Berkas</span>
+                </div>
+            </div>
+            <div id="chartLegendCustom" class="mt-4 grid grid-cols-1 gap-1.5 text-[11px] w-full"></div>
+        </section>
+    </div>
+
+</div>
+
+<script>
+    // ============ SUMBER DATA ============
+    const SHEET_ID = "1msGFk5kpmT--xC13FR5ZfSjSgYo3S_qEVWbJA6jEJeQ";
+    const SHEET_GID = "1437737751";
+    const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
+
+    // ============ STATE ============
+    let dataAll = [];
+    let worldNow = null;
+    let activeStatus = null;   // null | 'Proses' | 'JatuhTempo' | 'Selesai'
+    let activePosisi = null;
+    let activeKegiatan = null;
+    let detailPage = 1;
+    const PAGE_SIZE = 50;
+    let donutChartInstance = null;
+
+    // ============ UTIL ============
+    function fmt(n) { return new Intl.NumberFormat('id-ID').format(Math.round(n || 0)); }
+    function formatRupiah(n) { return 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(n || 0)); }
+    function getTglLabel(d) { return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' }).format(d); }
+
+    function parseAngkaID(raw) {
+        if (raw === null || raw === undefined) return 0;
+        let s = raw.toString().trim();
+        if (!s) return 0;
+        s = s.replace(/\./g, "").replace(",", ".");
+        let n = parseFloat(s);
+        return isNaN(n) ? 0 : n;
+    }
+
+    // Parser tanggal khusus data ini: format DD/MM/YYYY (bukan M/D/YYYY seperti sheet lain)
+    function parseTglIndo(str) {
+        if (!str) return null;
+        let s = str.toString().trim();
+        if (!s) return null;
+        let parts = s.split('/');
+        if (parts.length === 3) {
+            let d = parseInt(parts[0], 10), m = parseInt(parts[1], 10), y = parseInt(parts[2], 10);
+            if (!isNaN(d) && !isNaN(m) && !isNaN(y)) {
+                let dt = new Date(y, m - 1, d);
+                if (!isNaN(dt.getTime())) return dt;
+            }
+        }
+        let fallback = new Date(s);
+        return isNaN(fallback.getTime()) ? null : fallback;
+    }
+
+    function parseCsvLine(line) {
+        let result = [], cur = "", inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            let ch = line[i];
+            if (ch === '"') {
+                if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+                else { inQuotes = !inQuotes; }
+            } else if (ch === ',' && !inQuotes) { result.push(cur); cur = ""; }
+            else { cur += ch; }
+        }
+        result.push(cur);
+        return result;
+    }
+
+    // Baris CSV bisa mengandung newline di dalam sel (Jumlah_Penerimaan multi-baris, dibungkus tanda kutip) —
+    // gabungkan dulu baris fisik yang jumlah tanda kutipnya ganjil (berarti sel belum benar-benar tertutup)
+    function splitCsvRows(text) {
+        let physicalLines = text.split(/\r?\n/);
+        let rows = [];
+        let buffer = "";
+        for (let line of physicalLines) {
+            buffer = buffer ? buffer + "\n" + line : line;
+            let quoteCount = (buffer.match(/"/g) || []).length;
+            if (quoteCount % 2 === 0) { rows.push(buffer); buffer = ""; }
+        }
+        if (buffer) rows.push(buffer);
+        return rows.filter(r => r.trim().length > 0);
+    }
+
+    // Pecah isi kolom Jumlah_Penerimaan jadi rincian per sub-layanan: [{nama, unit, jumlah}]
+    function parseLayananItems(raw) {
+        if (!raw) return [];
+        let lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean);
+        let items = [];
+        lines.forEach(line => {
+            let cleaned = line.replace(/^\(\d+\)\s*/, '');
+            let m = cleaned.match(/^(.*?),\s*Unit:\s*([\d.,]*)\s*,\s*Jumlah:\s*([\d.,]*)/);
+            if (m) {
+                items.push({ nama: m[1].trim(), unit: parseAngkaID(m[2]), jumlah: parseAngkaID(m[3]) });
+            }
+        });
+        return items;
+    }
+
+    function parseRows(text) {
+        let lines = splitCsvRows(text);
+        let parsed = [];
+        for (let i = 1; i < lines.length; i++) {
+            let cols = parseCsvLine(lines[i]);
+            if (cols.length < 11) continue;
+            let nomor = (cols[1] || "").trim();
+            if (!nomor) continue;
+            let layananItems = parseLayananItems(cols[10]);
+            let totalPnbp = layananItems.reduce((s, it) => s + it.jumlah, 0);
+            let tanggalTerdaftar = parseTglIndo(cols[3]);
+            let jatuhTempo = parseTglIndo(cols[4]);
+            let tanggalDiserahkan = parseTglIndo(cols[6]);
+
+            let status;
+            if (tanggalDiserahkan) status = "Selesai";
+            else if (jatuhTempo && worldNow && jatuhTempo.getTime() < worldNow.getTime()) status = "JatuhTempo";
+            else status = "Proses";
+
+            parsed.push({
+                no: (cols[0] || "").trim(), nomor, tahun: (cols[2] || "").trim(),
+                tanggalTerdaftar, jatuhTempo, tanggalDiserahkan,
+                namaKegiatan: (cols[7] || "").trim() || "Lainnya",
+                namaPemohon: (cols[8] || "").trim(),
+                posisiTerakhir: (cols[9] || "").trim() || "Tidak Diketahui",
+                layananItems, totalPnbp, status
+            });
+        }
+        return parsed;
+    }
+
+    function pKey(d) { return d.nomor + "-" + d.tahun; }
+
+    // ============ MUAT DATA ============
+    async function autoLoad() {
+        document.getElementById('dataSourceText').innerText = "Memuat data...";
+        try {
+            const res = await fetch(SHEET_CSV_URL, { cache: 'no-store' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            let h = res.headers.get('date');
+            worldNow = h ? new Date(h) : new Date();
+            document.getElementById('todayLabel').innerText = `Tgl. ${getTglLabel(worldNow)}`;
+            const text = await res.text();
+            if (text.trim().toLowerCase().startsWith('<!doctype') || text.trim().toLowerCase().startsWith('<html')) {
+                throw new Error('Sheet belum diset "Anyone with the link"');
+            }
+            let parsed = parseRows(text);
+            if (parsed.length === 0) throw new Error('CSV kosong/tidak ada baris valid');
+            // Status dihitung ulang sekarang worldNow sudah pasti terisi (parseRows tahap pertama mungkin belum punya worldNow saat pemanggilan awal)
+            parsed.forEach(d => {
+                if (d.tanggalDiserahkan) d.status = "Selesai";
+                else if (d.jatuhTempo && d.jatuhTempo.getTime() < worldNow.getTime()) d.status = "JatuhTempo";
+                else d.status = "Proses";
+            });
+            dataAll = parsed;
+            document.getElementById('dataSourceText').innerText = `Sumber: Google Sheets (live) • Dimuat: ${new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}`;
+            document.getElementById('liveDot').classList.remove('hidden');
+        } catch (err) {
+            console.warn('[Pelayanan] Gagal ambil live: ' + err.message);
+            document.getElementById('dataSourceText').innerText = "Gagal memuat data live — cek apakah sheet sudah di-share \"Anyone with the link\"";
+            document.getElementById('liveDot').classList.add('hidden');
+            if (!worldNow) { worldNow = new Date(); document.getElementById('todayLabel').innerText = `Tgl. ${getTglLabel(worldNow)}`; }
+        }
+        renderAll();
+    }
+
+    // ============ FILTER & RENDER ============
+    function getFiltered() {
+        let yr = document.getElementById('filterTahun').value;
+        let keg = document.getElementById('filterKegiatan').value;
+        let q = document.getElementById('searchInput').value.trim().toLowerCase();
+        return dataAll.filter(d => {
+            if (yr !== "ALL" && d.tahun !== yr) return false;
+            if (keg !== "ALL" && d.namaKegiatan !== keg) return false;
+            if (q && !((d.nomor || "").toLowerCase().includes(q) || (d.namaKegiatan || "").toLowerCase().includes(q) ||
+                       (d.namaPemohon || "").toLowerCase().includes(q) || (d.posisiTerakhir || "").toLowerCase().includes(q))) return false;
+            if (activePosisi && d.posisiTerakhir !== activePosisi) return false;
+            if (activeKegiatan && d.namaKegiatan !== activeKegiatan) return false;
+            if (activeStatus && d.status !== activeStatus) return false;
+            return true;
+        });
+    }
+
+    function renderAll() {
+        populateDropdowns();
+        let data = getFiltered();
+        renderKpi(data);
+        renderNarrative(data);
+        renderPosisiTable(data);
+        renderKegiatanTable(data);
+        renderRankingTable(data);
+        renderDetailTable(data);
+        renderDonut(data);
+        clearSkeletons();
+    }
+
+    function clearSkeletons() { document.querySelectorAll('.skeleton').forEach(el => el.classList.remove('skeleton')); }
+
+    function populateDropdowns() {
+        let selYr = document.getElementById('filterTahun');
+        let curYr = selYr.value || "ALL";
+        let years = Array.from(new Set(dataAll.map(d => d.tahun).filter(Boolean))).sort();
+        selYr.innerHTML = `<option value="ALL">Semua Tahun</option>` + years.map(y => `<option value="${y}">${y}</option>`).join("");
+        selYr.value = years.includes(curYr) ? curYr : "ALL";
+
+        let selKeg = document.getElementById('filterKegiatan');
+        let curKeg = selKeg.value || "ALL";
+        let kegiatan = Array.from(new Set(dataAll.map(d => d.namaKegiatan))).sort();
+        selKeg.innerHTML = `<option value="ALL">Semua Kegiatan</option>` + kegiatan.map(k => `<option value="${k}">${k}</option>`).join("");
+        selKeg.value = kegiatan.includes(curKeg) ? curKeg : "ALL";
+    }
+
+    function renderKpi(data) {
+        document.getElementById('kpiTotal').innerText = fmt(data.length);
+        document.getElementById('kpiProses').innerText = fmt(data.filter(d => d.status === "Proses").length);
+        document.getElementById('kpiJatuhTempo').innerText = fmt(data.filter(d => d.status === "JatuhTempo").length);
+        document.getElementById('kpiSelesai').innerText = fmt(data.filter(d => d.status === "Selesai").length);
+        document.getElementById('kpiPnbp').innerText = formatRupiah(data.reduce((s, d) => s + d.totalPnbp, 0));
+    }
+
+    function topFrom(records, field) {
+        let counts = {};
+        records.forEach(r => { let k = r[field] || "-"; counts[k] = (counts[k] || 0) + 1; });
+        let entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        return entries.length > 0 ? entries[0] : null;
+    }
+
+    function renderNarrative(data) {
+        let el = document.getElementById('narrativeInsight');
+        if (!el) return;
+        let proses = data.filter(d => d.status === "Proses");
+        let jatuhTempo = data.filter(d => d.status === "JatuhTempo");
+        let selesai = data.filter(d => d.status === "Selesai");
+
+        let main = `Total <b>${fmt(data.length)} berkas aktif</b> tercatat, senilai <b>${formatRupiah(data.reduce((s, d) => s + d.totalPnbp, 0))}</b> — <b>${fmt(proses.length)} dalam proses</b>, <b>${fmt(jatuhTempo.length)} jatuh tempo</b>, <b>${fmt(selesai.length)} selesai diserahkan</b>.`;
+
+        let jatuhTempoSentence;
+        if (jatuhTempo.length > 0) {
+            let top = topFrom(jatuhTempo, 'posisiTerakhir');
+            let ket = top ? ` — terbanyak menumpuk di posisi <b>${top[0]}</b> (${fmt(top[1])} dari ${fmt(jatuhTempo.length)} berkas)` : "";
+            jatuhTempoSentence = ` <b>Evaluasi Jatuh Tempo:</b> <span class="underline decoration-dotted decoration-coral-300 cursor-pointer hover:bg-white/10 rounded" onclick="toggleQuickFilter('status','JatuhTempo')" title="Klik untuk lihat rincian">terdapat <b>${fmt(jatuhTempo.length)} berkas melewati jatuh tempo</b>${ket}, perlu percepatan penyelesaian oleh pelaksana terkait. <i class="fa-solid fa-arrow-down-short-wide text-[9px]"></i></span>`;
+        } else {
+            jatuhTempoSentence = ` <b>Evaluasi Jatuh Tempo:</b> nihil berkas melewati jatuh tempo — seluruh posisi mengelola tenggat waktu dengan baik.`;
+        }
+
+        // Sorot berkas jatuh tempo paling lama (terlambat paling parah)
+        let palingSentence = "";
+        let paling = null;
+        jatuhTempo.forEach(d => {
+            let diffDays = Math.round((d.jatuhTempo.getTime() - worldNow.getTime()) / (1000 * 60 * 60 * 24));
+            if (!paling || diffDays < paling.diffDays) paling = { record: d, diffDays };
+        });
+        if (paling) {
+            let telat = Math.abs(paling.diffDays);
+            let d = paling.record;
+            palingSentence = ` <b>Sorot Prioritas:</b> berkas paling lama tertunda adalah <span class="underline decoration-dotted decoration-white cursor-pointer hover:bg-white/10 rounded font-semibold" onclick="gotoNomor('${d.nomor}')" title="Klik untuk lihat detail berkas ini">No. ${d.nomor}</span> (${d.namaKegiatan}, posisi ${d.posisiTerakhir}), sudah terlambat <b>${fmt(telat)} hari</b> — perlu perhatian prioritas.`;
+        }
+
+        el.innerHTML = main + jatuhTempoSentence + palingSentence;
+    }
+
+    function statusBadgeClass(status) {
+        if (status === "Selesai") return "bg-emerald-100 text-emerald-700";
+        if (status === "JatuhTempo") return "bg-coral-100 text-coral-700";
+        return "bg-sky-100 text-sky-700";
+    }
+    function statusLabel(status) {
+        if (status === "Selesai") return "Selesai";
+        if (status === "JatuhTempo") return "Jatuh Tempo";
+        return "Dalam Proses";
+    }
+
+    function renderPosisiTable(data) {
+        let grouped = {};
+        data.forEach(d => {
+            let k = d.posisiTerakhir;
+            if (!grouped[k]) grouped[k] = { proses: 0, jatuhTempo: 0, total: 0 };
+            grouped[k].total++;
+            if (d.status === "Proses") grouped[k].proses++;
+            if (d.status === "JatuhTempo") grouped[k].jatuhTempo++;
+        });
+        let entries = Object.entries(grouped).sort((a, b) => b[1].total - a[1].total);
+        let html = "";
+        entries.forEach(([posisi, g]) => {
+            let isActive = activePosisi === posisi;
+            html += `
+                <tr class="cursor-pointer ${isActive ? 'bg-teal-50 ring-1 ring-inset ring-teal-300' : 'hover:bg-slate-50'}" onclick="selectPosisi('${posisi.replace(/'/g, "\\'")}')">
+                    <td class="p-2 font-medium ${isActive ? 'text-teal-700 font-bold' : 'text-slate-700'}">${posisi}</td>
+                    <td class="p-2 text-right text-sky-600 font-semibold">${fmt(g.proses)}</td>
+                    <td class="p-2 text-right text-coral-600 font-semibold">${fmt(g.jatuhTempo)}</td>
+                    <td class="p-2 text-right font-bold">${fmt(g.total)}</td>
+                </tr>`;
+        });
+        document.getElementById('tbodyPosisi').innerHTML = html || `<tr><td colspan="4" class="p-4 text-center text-slate-400">Tidak ada data</td></tr>`;
+        let badge = document.getElementById('posisiFilterBadge');
+        if (badge) badge.innerText = activePosisi ? `Filter: ${activePosisi} · klik lagi utk batal` : "klik baris untuk filter";
+    }
+
+    function renderKegiatanTable(data) {
+        let grouped = {};
+        data.forEach(d => {
+            let k = d.namaKegiatan;
+            if (!grouped[k]) grouped[k] = { count: 0, pnbp: 0 };
+            grouped[k].count++;
+            grouped[k].pnbp += d.totalPnbp;
+        });
+        let entries = Object.entries(grouped).sort((a, b) => b[1].count - a[1].count);
+        let html = "";
+        entries.forEach(([keg, g]) => {
+            let isActive = activeKegiatan === keg;
+            html += `
+                <tr class="cursor-pointer ${isActive ? 'bg-coral-50 ring-1 ring-inset ring-coral-300' : 'hover:bg-slate-50'}" onclick="selectKegiatan('${keg.replace(/'/g, "\\'")}')">
+                    <td class="p-2 font-medium ${isActive ? 'text-coral-700 font-bold' : 'text-slate-700'}">${keg}</td>
+                    <td class="p-2 text-right font-bold">${fmt(g.count)}</td>
+                    <td class="p-2 text-right text-slate-500">${formatRupiah(g.pnbp)}</td>
+                </tr>`;
+        });
+        document.getElementById('tbodyKegiatan').innerHTML = html || `<tr><td colspan="3" class="p-4 text-center text-slate-400">Tidak ada data</td></tr>`;
+        let badge = document.getElementById('kegiatanFilterBadge');
+        if (badge) badge.innerText = activeKegiatan ? `Filter: ${activeKegiatan} · klik lagi utk batal` : "klik baris untuk filter";
+    }
+
+    // Catatan evaluasi berdasarkan porsi kontribusi posisi terhadap total berkas Jatuh Tempo —
+    // dipakai untuk menekankan tingkat urgensi tanggung jawab per posisi, bukan sekadar angka mentah
+    function evalNoteForShare(pct) {
+        if (pct >= 30) return { text: "Prioritas Tertinggi — tindak lanjut segera", cls: "bg-coral-100 text-coral-700" };
+        if (pct >= 15) return { text: "Perlu Perhatian Serius", cls: "bg-amber-100 text-amber-700" };
+        if (pct > 0) return { text: "Perlu Dipantau", cls: "bg-sky-100 text-sky-700" };
+        return { text: "-", cls: "" };
+    }
+
+    // Peringkat Jatuh Tempo per Posisi — alat evaluasi kinerja & penekanan tanggung jawab pelaksana.
+    // Selalu dihitung khusus dari berkas berstatus JatuhTempo dalam data yang sedang ditampilkan (mengikuti
+    // filter Tahun/Kegiatan/Pencarian aktif), terlepas dari status apa yang sedang difilter di bagian lain.
+    function renderRankingTable(data) {
+        let jatuhTempoAll = data.filter(d => d.status === "JatuhTempo");
+        let grouped = {};
+        jatuhTempoAll.forEach(d => { grouped[d.posisiTerakhir] = (grouped[d.posisiTerakhir] || 0) + 1; });
+        let entries = Object.entries(grouped).sort((a, b) => b[1] - a[1]);
+        let total = jatuhTempoAll.length;
+
+        let html = "";
+        entries.forEach(([posisi, count], idx) => {
+            let rank = idx + 1;
+            let pct = total > 0 ? (count / total * 100) : 0;
+            let note = evalNoteForShare(pct);
+            let rankBadgeCls = rank === 1 ? "bg-coral-600 text-white" : (rank <= 3 ? "bg-amber-500 text-white" : "bg-slate-200 text-slate-600");
+            let isActive = activePosisi === posisi && activeStatus === "JatuhTempo";
+            html += `
+                <tr class="cursor-pointer ${isActive ? 'bg-coral-50 ring-1 ring-inset ring-coral-300' : 'hover:bg-slate-50'}" onclick="selectRanking('${posisi.replace(/'/g, "\\'")}')" title="Klik untuk lihat rincian berkas Jatuh Tempo di posisi ini">
+                    <td class="p-2 text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold ${rankBadgeCls}">${rank}</span></td>
+                    <td class="p-2 font-medium ${isActive ? 'text-coral-700 font-bold' : 'text-slate-700'}">${posisi}</td>
+                    <td class="p-2 text-right font-bold text-coral-600">${fmt(count)}</td>
+                    <td class="p-2">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden"><div class="h-full bg-coral-500" style="width:${Math.min(100, pct)}%"></div></div>
+                            <span class="text-[10px] text-slate-400 w-10 text-right">${pct.toFixed(1)}%</span>
+                        </div>
+                    </td>
+                    <td class="p-2"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${note.cls}">${note.text}</span></td>
+                </tr>`;
+        });
+        document.getElementById('tbodyRanking').innerHTML = html || `<tr><td colspan="5" class="p-4 text-center text-slate-400">Tidak ada berkas Jatuh Tempo — seluruh posisi mengelola tenggat waktu dengan baik.</td></tr>`;
+
+        let badge = document.getElementById('rankingFilterBadge');
+        if (badge) badge.innerText = (activePosisi && activeStatus === "JatuhTempo") ? `Filter: ${activePosisi} (Jatuh Tempo) · klik lagi utk batal` : "klik baris untuk filter";
+    }
+
+    // Klik baris peringkat: filter Rincian Data Berkas & Diagram Donat ke posisi tsb KHUSUS status Jatuh Tempo
+    function selectRanking(posisi) {
+        if (activePosisi === posisi && activeStatus === "JatuhTempo") {
+            activePosisi = null;
+            activeStatus = null;
+        } else {
+            activePosisi = posisi;
+            activeStatus = "JatuhTempo";
+            activeKegiatan = null;
+        }
+        renderAll();
+        let el = document.getElementById('sectionRincian');
+        if (el && activeStatus) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function urgencyBadge(d) {
+        if (!d.jatuhTempo || d.status === "Selesai") return "";
+        let diffDays = Math.round((d.jatuhTempo.getTime() - worldNow.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) return `<span class="text-[10px] font-bold text-coral-600 whitespace-nowrap">Terlambat ${fmt(Math.abs(diffDays))}h</span>`;
+        if (diffDays === 0) return `<span class="text-[10px] font-bold text-coral-600 whitespace-nowrap">Hari ini</span>`;
+        if (diffDays <= 7) return `<span class="text-[10px] font-bold text-amber-600 whitespace-nowrap">H-${diffDays}</span>`;
+        return `<span class="text-[10px] text-slate-400 whitespace-nowrap">H-${diffDays}</span>`;
+    }
+
+    let currentDetailData = [];
+    function renderDetailTable(data) {
+        currentDetailData = data;
+        detailPage = 1;
+        renderDetailPage();
+    }
+
+    function renderDetailPage() {
+        let data = currentDetailData;
+        let totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
+        if (detailPage > totalPages) detailPage = totalPages;
+        if (detailPage < 1) detailPage = 1;
+        let start = (detailPage - 1) * PAGE_SIZE;
+        let pageData = data.slice(start, start + PAGE_SIZE);
+
+        let html = "";
+        pageData.forEach(d => {
+            let layananHtml = d.layananItems.length > 0
+                ? d.layananItems.map(it => `<div class="text-[10px] text-slate-400">${it.nama}: ${formatRupiah(it.jumlah)}</div>`).join("")
+                : `<span class="text-[10px] text-slate-300">-</span>`;
+            html += `
+                <tr class="hover:bg-slate-50 align-top">
+                    <td class="p-2 font-bold text-teal-900">${d.nomor}</td>
+                    <td class="p-2">${d.namaKegiatan}</td>
+                    <td class="p-2 text-slate-500">${d.namaPemohon || '-'}</td>
+                    <td class="p-2 text-slate-500">${d.posisiTerakhir}</td>
+                    <td class="p-2 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${statusBadgeClass(d.status)}">${statusLabel(d.status)}</span></td>
+                    <td class="p-2 text-center">${urgencyBadge(d)}</td>
+                    <td class="p-2 text-right">
+                        <div class="font-semibold">${formatRupiah(d.totalPnbp)}</div>
+                        ${layananHtml}
+                    </td>
+                </tr>`;
+        });
+        document.getElementById('tbodyDetail').innerHTML = html || `<tr><td colspan="7" class="p-4 text-center text-slate-400">Data tidak ditemukan</td></tr>`;
+        document.getElementById('totalRowsBadge').innerText = `${fmt(data.length)} Data`;
+
+        let showEnd = Math.min(start + PAGE_SIZE, data.length);
+        document.getElementById('paginationInfo').innerText = data.length === 0 ? "Menampilkan 0 dari 0 data" : `Menampilkan ${start + 1}–${showEnd} dari ${fmt(data.length)} data`;
+        document.getElementById('paginationPageLabel').innerText = `${detailPage} / ${totalPages}`;
+        document.getElementById('btnPagePrev').disabled = detailPage <= 1;
+        document.getElementById('btnPageNext').disabled = detailPage >= totalPages;
+    }
+
+    function generateColorPalette(n) {
+        let colors = [];
+        for (let i = 0; i < n; i++) colors.push(`hsl(${Math.round((360 / n) * i)}, 62%, 52%)`);
+        return colors;
+    }
+
+    function renderDonut(data) {
+        let groupByOther = !!(activeStatus);
+        let modeLabel = document.getElementById('donutModeLabel');
+        if (groupByOther) {
+            if (modeLabel) modeLabel.innerText = "Kelompok: Nama Kegiatan";
+            renderDonutByField(data, 'namaKegiatan');
+        } else {
+            if (modeLabel) modeLabel.innerText = "Kelompok: Status Berkas";
+            renderDonutByStatus(data);
+        }
+    }
+
+    function renderDonutByStatus(data) {
+        let counts = { Proses: 0, JatuhTempo: 0, Selesai: 0 };
+        data.forEach(d => { counts[d.status] = (counts[d.status] || 0) + 1; });
+        let labels = ["Dalam Proses", "Jatuh Tempo", "Selesai (Diserahkan)"];
+        let values = [counts.Proses, counts.JatuhTempo, counts.Selesai];
+        let colors = ["#0ea5e9", "#e05f21", "#10b981"];
+        let total = data.length;
+
+        document.getElementById('donutCenterTotal').innerText = fmt(total);
+        let ctx = document.getElementById('statusDonutChart').getContext('2d');
+        if (donutChartInstance) donutChartInstance.destroy();
+        donutChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff', hoverOffset: 6 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '68%' }
+        });
+
+        let legendHtml = "";
+        labels.forEach((l, i) => {
+            let pct = total > 0 ? ((values[i] / total) * 100).toFixed(1) : "0.0";
+            legendHtml += `<div class="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50">
+                <div class="flex items-center gap-2 min-w-0"><span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${colors[i]}"></span><span class="text-slate-600 truncate">${l}</span></div>
+                <div class="text-right flex-shrink-0"><span class="font-bold text-slate-800">${fmt(values[i])}</span><span class="text-slate-400"> (${pct}%)</span></div>
+            </div>`;
+        });
+        document.getElementById('chartLegendCustom').innerHTML = legendHtml;
+    }
+
+    function renderDonutByField(data, field) {
+        let grouped = {};
+        data.forEach(d => { let k = d[field] || "Lainnya"; grouped[k] = (grouped[k] || 0) + 1; });
+        let entries = Object.entries(grouped).sort((a, b) => b[1] - a[1]);
+        const MAX_SLICE = 8;
+        let top = entries.slice(0, MAX_SLICE);
+        let rest = entries.slice(MAX_SLICE);
+        if (rest.length > 0) top.push([`Lainnya (${rest.length})`, rest.reduce((s, [, v]) => s + v, 0)]);
+
+        let labels = top.map(([k]) => k);
+        let values = top.map(([, v]) => v);
+        let colors = generateColorPalette(labels.length);
+        let total = data.length;
+
+        document.getElementById('donutCenterTotal').innerText = fmt(total);
+        let ctx = document.getElementById('statusDonutChart').getContext('2d');
+        if (donutChartInstance) donutChartInstance.destroy();
+        donutChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff', hoverOffset: 6 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '68%' }
+        });
+
+        let legendHtml = "";
+        labels.forEach((l, i) => {
+            let pct = total > 0 ? ((values[i] / total) * 100).toFixed(1) : "0.0";
+            legendHtml += `<div class="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50">
+                <div class="flex items-center gap-2 min-w-0"><span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${colors[i]}"></span><span class="text-slate-600 truncate" title="${l}">${l}</span></div>
+                <div class="text-right flex-shrink-0"><span class="font-bold text-slate-800">${fmt(values[i])}</span><span class="text-slate-400"> (${pct}%)</span></div>
+            </div>`;
+        });
+        document.getElementById('chartLegendCustom').innerHTML = legendHtml || `<div class="text-center text-slate-400 py-2">Tidak ada data</div>`;
+    }
+
+    // ============ INTERAKSI ============
+    function selectPosisi(posisi) {
+        activePosisi = (activePosisi === posisi) ? null : posisi;
+        activeKegiatan = null;
+        renderAll();
+    }
+    function selectKegiatan(keg) {
+        activeKegiatan = (activeKegiatan === keg) ? null : keg;
+        activePosisi = null;
+        renderAll();
+    }
+    function toggleQuickFilter(dim, val) {
+        if (dim === 'status') activeStatus = (activeStatus === val) ? null : val;
+        activePosisi = null;
+        activeKegiatan = null;
+        renderAll();
+        let el = document.getElementById('sectionRincian');
+        if (el && activeStatus) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    function gotoNomor(nomor) {
+        activePosisi = null; activeKegiatan = null; activeStatus = null;
+        document.getElementById('searchInput').value = nomor;
+        renderAll();
+        let el = document.getElementById('sectionRincian');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    document.getElementById('filterTahun').addEventListener('change', renderAll);
+    document.getElementById('filterKegiatan').addEventListener('change', renderAll);
+    document.getElementById('searchInput').addEventListener('input', renderAll);
+    document.getElementById('btnResetFilter').addEventListener('click', () => {
+        document.getElementById('filterTahun').value = "ALL";
+        document.getElementById('filterKegiatan').value = "ALL";
+        document.getElementById('searchInput').value = "";
+        activePosisi = null; activeKegiatan = null; activeStatus = null;
+        renderAll();
+    });
+    document.getElementById('btnPagePrev').addEventListener('click', () => { detailPage--; renderDetailPage(); });
+    document.getElementById('btnPageNext').addEventListener('click', () => { detailPage++; renderDetailPage(); });
+    document.getElementById('btnRefreshData').addEventListener('click', () => { autoLoad(); });
+    document.getElementById('btnPrintPdf').addEventListener('click', () => window.print());
+    document.getElementById('btnExportExcel').addEventListener('click', () => {
+        try {
+            let rows = currentDetailData.map((d, i) => ({
+                "No": i + 1, "No. Berkas": d.nomor, "Tahun": d.tahun,
+                "Nama Kegiatan": d.namaKegiatan, "Pemohon": d.namaPemohon, "Posisi Terakhir": d.posisiTerakhir,
+                "Status": statusLabel(d.status), "PNBP": d.totalPnbp
+            }));
+            if (rows.length === 0) { alert("Tidak ada data untuk diekspor."); return; }
+            let ws = XLSX.utils.json_to_sheet(rows);
+            let wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Pelayanan Pertanahan");
+            XLSX.writeFile(wb, `Pelayanan-Pertanahan-${worldNow ? worldNow.toISOString().slice(0,10) : 'data'}.xlsx`);
+        } catch (err) {
+            alert("Gagal membuat file Excel: " + err.message);
+        }
+    });
+
+    window.onload = autoLoad;
+</script>
+</body>
+</html>
