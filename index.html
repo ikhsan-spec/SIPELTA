@@ -377,6 +377,11 @@
         </div>
         <div id="renaksiModalBody" class="p-5 overflow-y-auto space-y-3"></div>
         <div class="px-5 py-3 border-t border-slate-100">
+            <p id="renaksiLockedNote" class="hidden text-[11px] text-slate-500 text-center bg-slate-50 rounded-lg p-2.5 leading-relaxed">
+                <i class="fa-solid fa-lock text-slate-400"></i>
+                Renaksi untuk posisi saat ini sudah diisi lengkap &mdash; terkunci (tidak bisa diisi ulang) sampai
+                berkas ini benar-benar berpindah ke posisi pelaksana lain.
+            </p>
             <button id="renaksiModalFormBtn" onclick="openRenaksiFromHistory()" class="w-full inline-flex items-center justify-center gap-2 bg-coral-600 hover:bg-coral-500 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition">
                 <i class="fa-solid fa-pen-to-square"></i> Isi / Perbarui Renaksi untuk Berkas Ini
             </button>
@@ -471,13 +476,15 @@
     // Selama RENAKSI_WEBAPP_URL belum diisi, formulir tetap bisa dibuka & diisi untuk dicoba, namun submit akan
     // menampilkan pesan agar setup di atas diselesaikan dulu (tidak ada data yang hilang secara diam-diam).
     const RENAKSI_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzQfcy-hZ76V2jgXzeN-8vLuCiPs6Uy4oZJP3tDSUMDgkx3zVFosBHHvVBjv3eimG5oJw/exec";
-    const RENAKSI_SHEET_GID = "755069120";   // gid tab "Renaksi" pada Google Sheet, utk membaca kembali riwayatnya
+    const RENAKSI_SHEET_GID = "1267130714";   // gid tab "Renaksi" pada Google Sheet, utk membaca kembali riwayatnya
     const RENAKSI_CSV_URL = RENAKSI_SHEET_GID
         ? `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${RENAKSI_SHEET_GID}`
         : null;
     // Kolom pada tab "Renaksi" (dibuat otomatis oleh renaksi-webapp.gs, urutan HARUS sama):
-    // 0 Timestamp | 1 No. Berkas | 2 Nama Kegiatan | 3 Posisi Terakhir | 4 Nama Petugas
-    // 5 Alasan Jatuh Tempo | 6 Kondisi Saat Ini | 7 Rencana Aksi Penyelesaian | 8 Estimasi Tanggal Selesai
+    // 0 Timestamp | 1 No. Berkas | 2 Tahun | 3 Nama Kegiatan | 4 Posisi Terakhir | 5 Nama Petugas
+    // 6 Alasan Jatuh Tempo | 7 Kondisi Saat Ini | 8 Rencana Aksi Penyelesaian | 9 Estimasi Tanggal Selesai
+    // PENTING: kolom "Tahun" WAJIB ada — No. Berkas bisa terpakai ulang di tahun berbeda sbg berkas yang
+    // benar-benar berbeda, jadi pencocokan riwayat renaksi selalu memakai kunci gabungan No.Berkas+Tahun.
 
     // ============ STATE ============
     let dataAll = [];
@@ -499,6 +506,45 @@
     function dateOnly(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
     function isSameDate(a, b) { return !!a && !!b && dateOnly(a).getTime() === dateOnly(b).getTime(); }
     function addDays(d, n) { let r = new Date(d); r.setDate(r.getDate() + n); return r; }
+
+    // ============ RIWAYAT UPLOAD DATA ============
+    // Tujuan: label "Dimuat: ..." di header TIDAK BOLEH ikut berubah setiap kali aplikasi sekadar dibuka
+    // ulang — itu harus tetap menunjuk ke waktu SAAT ISI DATA di Google Sheet benar-benar berubah terakhir
+    // kali. Dideteksi dengan membandingkan hash isi CSV yang baru diambil dengan hash upload terakhir yang
+    // tercatat; kalau sama persis, waktunya tidak diperbarui. Kalau beda, dicatat sebagai upload baru
+    // (Kedua, Ketiga, dst). Riwayat disimpan di localStorage browser/perangkat ini.
+    const UPLOAD_HISTORY_KEY = 'sipelta_upload_history_v1';
+    const UPLOAD_HISTORY_MAX = 30; // batasi riwayat tersimpan supaya tidak membengkak
+
+    function simpleHash(str) {
+        let hash = 5381;
+        for (let i = 0; i < str.length; i++) { hash = ((hash << 5) + hash) + str.charCodeAt(i); hash |= 0; }
+        return hash.toString(36) + '_' + str.length;
+    }
+    function loadUploadHistory() {
+        try { let raw = localStorage.getItem(UPLOAD_HISTORY_KEY); return raw ? JSON.parse(raw) : []; }
+        catch (e) { return []; }
+    }
+    function saveUploadHistory(hist) {
+        try { localStorage.setItem(UPLOAD_HISTORY_KEY, JSON.stringify(hist)); } catch (e) { /* localStorage tdk tersedia — abaikan */ }
+    }
+    function ordinalWord(n) {
+        const words = ['', 'Pertama', 'Kedua', 'Ketiga', 'Keempat', 'Kelima', 'Keenam', 'Ketujuh', 'Kedelapan', 'Kesembilan', 'Kesepuluh'];
+        return words[n] || ('ke-' + n);
+    }
+    // Mencatat isi CSV yang baru diambil sebagai event upload BARU hanya kalau isinya benar-benar
+    // berbeda dari upload terakhir yang tercatat. Mengembalikan seluruh riwayat (array) setelah diperbarui.
+    function recordUploadEvent(csvText) {
+        let hash = simpleHash(csvText);
+        let hist = loadUploadHistory();
+        let last = hist.length > 0 ? hist[hist.length - 1] : null;
+        if (!last || last.hash !== hash) {
+            hist.push({ hash, timestamp: Date.now() });
+            if (hist.length > UPLOAD_HISTORY_MAX) hist = hist.slice(hist.length - UPLOAD_HISTORY_MAX);
+            saveUploadHistory(hist);
+        }
+        return hist;
+    }
 
     function parseAngkaID(raw) {
         if (raw === null || raw === undefined) return 0;
@@ -607,6 +653,9 @@
     }
 
     function pKey(d) { return d.nomor + "-" + d.tahun; }
+    // Cari record di dataAll berdasarkan kunci gabungan No.Berkas+Tahun (BUKAN No.Berkas saja) — perlu
+    // karena No. Berkas bisa terpakai ulang di tahun yang berbeda sbg berkas yang benar-benar berbeda.
+    function findByPKey(key) { return dataAll.find(x => pKey(x) === key); }
 
     // ============ MUAT DATA ============
     async function autoLoad() {
@@ -631,7 +680,15 @@
                 else d.status = "Proses";
             });
             dataAll = parsed;
-            document.getElementById('dataSourceText').innerText = `Sumber: Google Sheets (live) • Dimuat: ${new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}`;
+            let uploadHist = recordUploadEvent(text);
+            let latestUpload = uploadHist[uploadHist.length - 1];
+            let uploadOrdinal = ordinalWord(uploadHist.length);
+            let uploadTglJam = new Date(latestUpload.timestamp).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+            let dataSourceEl = document.getElementById('dataSourceText');
+            dataSourceEl.innerText = `Sumber: Google Sheets (live) • Update ${uploadOrdinal} — ${uploadTglJam}`;
+            dataSourceEl.title = 'Riwayat perubahan data di perangkat ini:\n' + uploadHist.map((h, i) =>
+                `Update ${ordinalWord(i + 1)}: ${new Date(h.timestamp).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}`
+            ).join('\n');
             document.getElementById('liveDot').classList.remove('hidden');
         } catch (err) {
             console.warn('[Pelayanan] Gagal ambil live: ' + err.message);
@@ -1032,29 +1089,60 @@
     }
 
     // ============ RENAKSI (RENCANA AKSI) — FORMULIR DALAM APLIKASI ============
-    let currentRenaksiNomor = null;  // nomor yg sedang dibuka di modal Riwayat, dipakai tombol "Isi/Perbarui"
+    let currentRenaksiKey = null;  // pKey (No.Berkas-Tahun) yg sedang dibuka di modal Riwayat
 
-    // Tombol pada kolom Renaksi tabel Rincian Data Berkas — hanya relevan utk berkas Jatuh Tempo.
-    // Jika sudah ada riwayat renaksi utk No. Berkas tsb: tampil badge "Ada Renaksi" (klik = buka riwayat).
-    // Jika belum ada: tampil tombol "Isi Renaksi" yang membuka formulir dalam aplikasi, terkunci ke No. Berkas ini.
+    // Renaksi yang SUDAH diisi lengkap untuk suatu berkas dianggap "terkunci" (tidak bisa diisi ulang/dihapus)
+    // SELAMA berkas itu masih berada di posisi pelaksana yang SAMA dengan posisi saat renaksi terakhir dicatat.
+    // Begitu Posisi Terakhir berkas itu BERUBAH (berpindah ke pelaksana lain sesuai jenjang kewenangan),
+    // otomatis terbuka lagi untuk diisi renaksi BARU (bukan menghapus yang lama — riwayat lama tetap utuh
+    // tersimpan di Google Sheet, entri baru hanya ditambahkan/append di atasnya).
+    // PENTING: dikunci berdasarkan pKey (No.Berkas + Tahun), BUKAN No.Berkas saja — karena No. Berkas bisa
+    // terpakai ulang di tahun berbeda sbg berkas yang benar-benar berbeda (dikonfirmasi oleh pengguna aplikasi).
+    function isRenaksiLocked(d) {
+        let riwayat = renaksiMap[pKey(d)];
+        if (!riwayat || riwayat.length === 0) return false; // belum pernah diisi -> tidak terkunci, silakan isi
+        return riwayat[0].posisi === d.posisiTerakhir; // riwayat[0] = entri terbaru (sudah terurut desc)
+    }
+
+    // Tombol pada kolom Renaksi tabel Rincian Data Berkas.
+    // - Ada riwayat & MASIH berstatus Jatuh Tempo & posisi belum berpindah (TERKUNCI) -> hijau, ikon gembok.
+    // - Ada riwayat & MASIH Jatuh Tempo tapi posisi SUDAH berpindah -> kuning "Perlu Renaksi Baru".
+    // - Ada riwayat TAPI status sudah BUKAN Jatuh Tempo lagi (mis. sudah Selesai/Ditutup, atau kembali jadi
+    //   Proses karena tanggal jatuh tempo diperbarui) -> tetap ditampilkan (abu-abu, "Riwayat Renaksi") sebagai
+    //   ARSIP pertanggungjawaban — TIDAK IKUT HILANG hanya karena status berkas berubah, selama No. Berkas +
+    //   Tahun-nya masih sama persis di data (aman juga terhadap update sheet model hapus-lalu-tempel-ulang).
+    // - Belum pernah diisi & MASIH Jatuh Tempo -> tombol "Isi Renaksi" (coral).
+    // - Belum pernah diisi & BUKAN Jatuh Tempo -> tidak ada apa-apa ("-").
     function renaksiCellHtml(d) {
-        if (d.status !== "JatuhTempo") return `<span class="text-[10px] text-slate-300">-</span>`;
-        let riwayat = renaksiMap[d.nomor];
+        let key = pKey(d);
+        let riwayat = renaksiMap[key];
         if (riwayat && riwayat.length > 0) {
-            return `<button onclick="openRenaksiModal('${d.nomor.replace(/'/g, "\\'")}')" class="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition whitespace-nowrap">
-                        <i class="fa-solid fa-circle-check"></i> Ada Renaksi (${riwayat.length})
+            if (d.status !== "JatuhTempo") {
+                return `<button onclick="openRenaksiModal('${key.replace(/'/g, "\\'")}')" class="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300 transition whitespace-nowrap" title="Riwayat renaksi tetap tersimpan sbg arsip — berkas ini sudah tidak berstatus Jatuh Tempo lagi">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Riwayat Renaksi (${riwayat.length})
+                        </button>`;
+            }
+            let locked = isRenaksiLocked(d);
+            if (locked) {
+                return `<button onclick="openRenaksiModal('${key.replace(/'/g, "\\'")}')" class="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition whitespace-nowrap" title="Sudah diisi utk posisi saat ini — terkunci sampai berkas berpindah posisi">
+                            <i class="fa-solid fa-lock"></i> Ada Renaksi (${riwayat.length})
+                        </button>`;
+            }
+            return `<button onclick="openRenaksiModal('${key.replace(/'/g, "\\'")}')" class="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 transition whitespace-nowrap" title="Berkas sudah berpindah posisi sejak renaksi terakhir — perlu renaksi baru dari posisi saat ini">
+                        <i class="fa-solid fa-rotate"></i> Perlu Renaksi Baru
                     </button>`;
         }
-        return `<button onclick="openRenaksiSubmitModal('${d.nomor.replace(/'/g, "\\'")}')" class="text-[10px] font-bold px-2 py-1 rounded-full bg-coral-100 text-coral-700 hover:bg-coral-200 transition whitespace-nowrap">
+        if (d.status !== "JatuhTempo") return `<span class="text-[10px] text-slate-300">-</span>`;
+        return `<button onclick="openRenaksiSubmitModal('${key.replace(/'/g, "\\'")}')" class="text-[10px] font-bold px-2 py-1 rounded-full bg-coral-100 text-coral-700 hover:bg-coral-200 transition whitespace-nowrap">
                     <i class="fa-solid fa-pen"></i> Isi Renaksi
                 </button>`;
     }
 
-    function openRenaksiModal(nomor) {
-        currentRenaksiNomor = nomor;
-        let d = dataAll.find(x => x.nomor === nomor);
-        let riwayat = renaksiMap[nomor] || [];
-        document.getElementById('renaksiModalSubtitle').innerText = d ? `No. ${d.nomor} — ${d.namaKegiatan} — Posisi: ${d.posisiTerakhir}` : `No. ${nomor}`;
+    function openRenaksiModal(key) {
+        currentRenaksiKey = key;
+        let d = findByPKey(key);
+        let riwayat = renaksiMap[key] || [];
+        document.getElementById('renaksiModalSubtitle').innerText = d ? `No. ${d.nomor}/${d.tahun} — ${d.namaKegiatan} — Posisi: ${d.posisiTerakhir}` : `No. ${key}`;
         let body = document.getElementById('renaksiModalBody');
         if (riwayat.length === 0) {
             body.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Belum ada renaksi yang tercatat untuk berkas ini.</p>`;
@@ -1065,32 +1153,54 @@
                         <span class="text-[10px] font-bold ${i === 0 ? 'text-emerald-700' : 'text-slate-500'} uppercase tracking-wider">${i === 0 ? 'Renaksi Terbaru' : 'Riwayat Sebelumnya'}</span>
                         <span class="text-[10px] text-slate-400">${r.timestamp ? r.timestamp.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}</span>
                     </div>
-                    <p class="text-[11px] text-slate-600"><b>Petugas:</b> ${r.namaPetugas || '-'}</p>
+                    <p class="text-[11px] text-slate-600"><b>Posisi saat diisi:</b> ${r.posisi || '-'}</p>
+                    <p class="text-[11px] text-slate-600 mt-1"><b>Petugas:</b> ${r.namaPetugas || '-'}</p>
                     <p class="text-[11px] text-slate-600 mt-1"><b>Alasan Jatuh Tempo:</b> ${r.alasan || '-'}</p>
                     <p class="text-[11px] text-slate-600 mt-1"><b>Kondisi Saat Ini:</b> ${r.kondisi || '-'}</p>
                     <p class="text-[11px] text-slate-600 mt-1"><b>Rencana Aksi:</b> ${r.rencanaAksi || '-'}</p>
                     ${r.estimasiSelesai ? `<p class="text-[11px] text-slate-600 mt-1"><b>Estimasi Selesai:</b> ${r.estimasiSelesai}</p>` : ''}
                 </div>`).join("");
         }
+
+        // Tombol "Isi/Perbarui" HANYA muncul kalau berkas MASIH berstatus Jatuh Tempo & posisi sudah berpindah
+        // (belum terkunci). Kalau statusnya sudah bukan Jatuh Tempo lagi, riwayat ditampilkan sbg arsip murni
+        // — tidak perlu diisi ulang. Kalau masih Jatuh Tempo tapi posisi belum berpindah, tampilkan alasan kunci.
+        let noteEl = document.getElementById('renaksiLockedNote');
+        let btnEl = document.getElementById('renaksiModalFormBtn');
+        if (!d || d.status !== "JatuhTempo") {
+            btnEl.classList.add('hidden');
+            noteEl.classList.remove('hidden');
+            noteEl.innerHTML = `<i class="fa-solid fa-box-archive text-slate-400"></i> Berkas ini sudah tidak berstatus Jatuh Tempo lagi${d ? ` (status saat ini: <b>${statusLabel(d.status)}</b>)` : ''} — riwayat di atas tersimpan permanen sebagai arsip pertanggungjawaban dan tidak perlu diisi ulang.`;
+        } else if (isRenaksiLocked(d)) {
+            btnEl.classList.add('hidden');
+            noteEl.classList.remove('hidden');
+            noteEl.innerHTML = `<i class="fa-solid fa-lock text-slate-400"></i> Renaksi untuk posisi saat ini sudah diisi lengkap — terkunci (tidak bisa diisi ulang) sampai berkas ini benar-benar berpindah ke posisi pelaksana lain.`;
+        } else {
+            btnEl.classList.remove('hidden');
+            noteEl.classList.add('hidden');
+        }
+
         document.getElementById('renaksiModal').classList.remove('hidden');
     }
     function closeRenaksiModal() { document.getElementById('renaksiModal').classList.add('hidden'); }
     function openRenaksiFromHistory() {
-        let nomor = currentRenaksiNomor;
+        let key = currentRenaksiKey;
         closeRenaksiModal();
-        openRenaksiSubmitModal(nomor);
+        openRenaksiSubmitModal(key);
     }
 
-    // Formulir Renaksi dalam aplikasi. nomor === null -> dropdown menampilkan SELURUH berkas Jatuh Tempo
-    // (dipakai tombol umum di footer). nomor terisi -> dropdown otomatis terpilih & terkunci ke berkas tsb
-    // (dipakai tombol "Isi Renaksi" per baris, supaya tidak salah pilih).
-    function openRenaksiSubmitModal(nomor) {
+    // Formulir Renaksi dalam aplikasi. key === null -> dropdown menampilkan berkas Jatuh Tempo yang MASIH
+    // PERLU renaksi (belum pernah diisi, ATAU sudah pernah tapi berkasnya sudah berpindah posisi sejak itu) —
+    // berkas yang renaksinya sudah terkunci (posisi belum berubah) TIDAK ditampilkan di sini, supaya tidak
+    // bisa dobel-isi. key terisi (format "NoBerkas-Tahun") -> dropdown otomatis terpilih & terkunci ke berkas
+    // itu SAJA — dipakai supaya tidak keliru kalau ada No.Berkas yang sama tapi beda Tahun.
+    function openRenaksiSubmitModal(key) {
         let sel = document.getElementById('renaksiSelectNomor');
-        let jatuhTempoList = dataAll.filter(d => d.status === "JatuhTempo")
+        let jatuhTempoList = dataAll.filter(d => d.status === "JatuhTempo" && !isRenaksiLocked(d))
             .sort((a, b) => a.posisiTerakhir.localeCompare(b.posisiTerakhir) || a.nomor.localeCompare(b.nomor));
 
         sel.innerHTML = `<option value="">— Pilih No. Berkas —</option>` +
-            jatuhTempoList.map(d => `<option value="${d.nomor.replace(/"/g, '&quot;')}">${d.nomor} — ${d.namaKegiatan} (${d.posisiTerakhir})</option>`).join("");
+            jatuhTempoList.map(d => `<option value="${pKey(d).replace(/"/g, '&quot;')}">${d.nomor}/${d.tahun} — ${d.namaKegiatan} (${d.posisiTerakhir})</option>`).join("");
         document.getElementById('renaksiSelectEmptyNote').classList.toggle('hidden', jatuhTempoList.length > 0);
 
         // reset field isian setiap kali formulir dibuka
@@ -1101,8 +1211,8 @@
         document.getElementById('renaksiFieldEstimasi').value = "";
         document.getElementById('renaksiSubmitStatus').classList.add('hidden');
 
-        if (nomor && jatuhTempoList.some(d => d.nomor === nomor)) {
-            sel.value = nomor;
+        if (key && jatuhTempoList.some(d => pKey(d) === key)) {
+            sel.value = key;
             sel.disabled = true;
         } else {
             sel.disabled = false;
@@ -1113,14 +1223,14 @@
     function closeRenaksiSubmitModal() { document.getElementById('renaksiSubmitModal').classList.add('hidden'); }
 
     function onRenaksiNomorChange() {
-        let nomor = document.getElementById('renaksiSelectNomor').value;
-        let d = dataAll.find(x => x.nomor === nomor);
+        let key = document.getElementById('renaksiSelectNomor').value;
+        let d = findByPKey(key);
         document.getElementById('renaksiFieldKegiatan').value = d ? d.namaKegiatan : "";
         document.getElementById('renaksiFieldPosisi').value = d ? d.posisiTerakhir : "";
     }
 
     async function submitRenaksi() {
-        let nomor = document.getElementById('renaksiSelectNomor').value;
+        let key = document.getElementById('renaksiSelectNomor').value;
         let namaPetugas = document.getElementById('renaksiFieldNamaPetugas').value.trim();
         let alasan = document.getElementById('renaksiFieldAlasan').value.trim();
         let kondisi = document.getElementById('renaksiFieldKondisi').value.trim();
@@ -1134,7 +1244,7 @@
             statusEl.classList.remove('hidden');
         }
 
-        if (!nomor) { showStatus("Pilih No. Berkas terlebih dahulu.", false); return; }
+        if (!key) { showStatus("Pilih No. Berkas terlebih dahulu.", false); return; }
         if (!namaPetugas) { showStatus("Nama Petugas wajib diisi sebagai bentuk pertanggungjawaban.", false); return; }
         if (!alasan || !rencanaAksi) { showStatus("Alasan Jatuh Tempo dan Rencana Aksi wajib diisi.", false); return; }
         if (!RENAKSI_WEBAPP_URL) {
@@ -1142,22 +1252,26 @@
             return;
         }
 
-        let d = dataAll.find(x => x.nomor === nomor);
+        let d = findByPKey(key);
         let btn = document.getElementById('renaksiSubmitBtn');
         btn.disabled = true;
         showStatus("Mengirim...", true);
 
+        // Sertakan Tahun (bukan cuma No.Berkas) — supaya tidak tertukar dgn berkas lain yg kebetulan No.Berkas
+        // -nya sama tapi Tahun berbeda.
         let payload = new URLSearchParams({
-            noBerkas: nomor, namaKegiatan: d ? d.namaKegiatan : "", posisi: d ? d.posisiTerakhir : "",
+            noBerkas: d ? d.nomor : key, tahun: d ? d.tahun : "",
+            namaKegiatan: d ? d.namaKegiatan : "", posisi: d ? d.posisiTerakhir : "",
             namaPetugas, alasan, kondisi, rencanaAksi, estimasiSelesai
         });
 
         try {
             await fetch(RENAKSI_WEBAPP_URL, { method: 'POST', body: payload });
             // Update tampilan secara optimis — riwayat lengkap akan ter-sinkron ulang pd Refresh Data berikutnya.
-            if (!renaksiMap[nomor]) renaksiMap[nomor] = [];
-            renaksiMap[nomor].unshift({
-                timestamp: new Date(), nomor, namaKegiatan: d ? d.namaKegiatan : "", posisi: d ? d.posisiTerakhir : "",
+            if (!renaksiMap[key]) renaksiMap[key] = [];
+            renaksiMap[key].unshift({
+                timestamp: new Date(), nomor: d ? d.nomor : key, tahun: d ? d.tahun : "",
+                namaKegiatan: d ? d.namaKegiatan : "", posisi: d ? d.posisiTerakhir : "",
                 namaPetugas, alasan, kondisi, rencanaAksi, estimasiSelesai
             });
             showStatus("Renaksi berhasil dikirim & tersimpan ke Google Sheet.", true);
@@ -1187,18 +1301,22 @@
             let lines = splitCsvRows(text);
             for (let i = 1; i < lines.length; i++) {
                 let cols = parseCsvLine(lines[i]);
-                if (cols.length < 8) continue;
+                if (cols.length < 9) continue;
                 let nomor = (cols[1] || "").trim();
+                let tahun = (cols[2] || "").trim();
                 if (!nomor) continue;
                 let entry = {
                     timestamp: new Date((cols[0] || "").trim()) || null,
-                    nomor, namaKegiatan: (cols[2] || "").trim(), posisi: (cols[3] || "").trim(),
-                    namaPetugas: (cols[4] || "").trim(),
-                    alasan: (cols[5] || "").trim(), kondisi: (cols[6] || "").trim(),
-                    rencanaAksi: (cols[7] || "").trim(), estimasiSelesai: (cols[8] || "").trim()
+                    nomor, tahun, namaKegiatan: (cols[3] || "").trim(), posisi: (cols[4] || "").trim(),
+                    namaPetugas: (cols[5] || "").trim(),
+                    alasan: (cols[6] || "").trim(), kondisi: (cols[7] || "").trim(),
+                    rencanaAksi: (cols[8] || "").trim(), estimasiSelesai: (cols[9] || "").trim()
                 };
-                if (!renaksiMap[nomor]) renaksiMap[nomor] = [];
-                renaksiMap[nomor].push(entry);
+                // Kunci gabungan No.Berkas+Tahun (bukan No.Berkas saja) — supaya tidak tertukar kalau ada
+                // No. Berkas yang sama tapi Tahun berbeda (dikonfirmasi bisa terjadi di data ini).
+                let key = nomor + "-" + tahun;
+                if (!renaksiMap[key]) renaksiMap[key] = [];
+                renaksiMap[key].push(entry);
             }
             Object.keys(renaksiMap).forEach(k => {
                 renaksiMap[k].sort((a, b) => (b.timestamp ? b.timestamp.getTime() : 0) - (a.timestamp ? a.timestamp.getTime() : 0));
