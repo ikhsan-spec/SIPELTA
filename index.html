@@ -105,7 +105,7 @@
                 <span class="text-[10px] text-emerald-200 block uppercase tracking-wider">Selesai (Diserahkan)</span>
                 <span id="kpiSelesai" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
             </button>
-            <button type="button" onclick="openKpiModal('ditutup')" class="text-left bg-slate-400/20 backdrop-blur-md p-3 rounded-xl border border-slate-300/20 hover:bg-slate-400/30 hover:border-slate-300/40 transition cursor-pointer">
+            <button type="button" onclick="openDitutupKpiCard()" class="text-left bg-slate-400/20 backdrop-blur-md p-3 rounded-xl border border-slate-300/20 hover:bg-slate-400/30 hover:border-slate-300/40 transition cursor-pointer">
                 <span class="text-[10px] text-slate-200 block uppercase tracking-wider">Ditutup</span>
                 <span id="kpiDitutup" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
                 <span id="kpiDitutupPnbp" class="text-[9px] text-slate-100/80 block mt-0.5">PNBP: Rp 0</span>
@@ -955,8 +955,20 @@
         renderArahan(data);
         renderProsesJatuhTempoTable(data);
         renderRenaksiFooterStatus(data);
-        renderDetailTable(data);
-        renderDonut(data);
+
+        // Rincian Data Berkas & Diagram Donat: berkas Ditutup HANYA ikut ditampilkan saat (a) kondisi
+        // "Tampil Semua" murni (tidak ada filter/pencarian/klik apa pun aktif), atau (b) activeStatus
+        // secara eksplisit = 'Ditutup' (mis. dari klik kartu KPI Ditutup). Di SEMUA kondisi filter lain
+        // (dropdown Tahun/Kegiatan, kotak Cari, klik baris Posisi/Kegiatan/Peringkat) Ditutup disembunyikan
+        // — supaya konsisten dgn tabel rekap lain (Posisi/Kegiatan) yang juga selalu mengecualikannya.
+        let yr = document.getElementById('filterTahun').value;
+        let keg = document.getElementById('filterKegiatan').value;
+        let qRaw = document.getElementById('searchInput').value.trim();
+        let isTampilSemua = (yr === "ALL" && keg === "ALL" && !qRaw && !activePosisi && !activeKegiatan && !activeStatus);
+        let detailData = (activeStatus === "Ditutup" || isTampilSemua) ? data : data.filter(d => d.status !== "Ditutup");
+
+        renderDetailTable(detailData);
+        renderDonut(detailData);
         clearSkeletons();
     }
 
@@ -1674,6 +1686,19 @@
 
     let kpiModalBaseData = [];   // data mentah sesuai angka KPI yang diklik — TIDAK berubah oleh dropdown kegiatan
     let kpiModalKind = null;
+
+    // Khusus kartu KPI "Ditutup": SELAIN membuka modal rincian (spt kartu KPI lain), juga langsung
+    // memfilter tabel "Rincian Data Berkas" di halaman utama ke status Ditutup & scroll ke situ — supaya
+    // begitu modal ditutup, tabel utama sudah menampilkan Ditutup (bukan cuma di dalam modal saja).
+    function openDitutupKpiCard() {
+        activeStatus = "Ditutup";
+        activePosisi = null;
+        activeKegiatan = null;
+        renderAll();
+        openKpiModal('ditutup');
+        let el = document.getElementById('sectionRincian');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
     function openKpiModal(kind) {
         let { title, data } = getKpiModalData(kind);
