@@ -908,6 +908,14 @@
         return items;
     }
 
+    const POSISI_LOKET_PENYERAHAN = "Loket Pelayanan Penyerahan";
+    // Menentukan status Proses/JatuhTempo murni dari tanggal jatuh tempo (dipakai di beberapa cabang logika
+    // status supaya tidak duplikat kode).
+    function statusDariTanggal(jatuhTempo) {
+        if (jatuhTempo && worldNow && jatuhTempo.getTime() < worldNow.getTime()) return "JatuhTempo";
+        return "Proses";
+    }
+
     function parseRows(text) {
         let lines = splitCsvRows(text);
         let parsed = [];
@@ -922,22 +930,39 @@
             let jatuhTempo = parseTglIndo(cols[4]);
             let tanggalDiserahkan = parseTglIndo(cols[6]);
             let keterangan = (cols[11] || "").trim();
+            let posisiTerakhir = (cols[9] || "").trim() || "Tidak Diketahui";
 
             // Status "Ditutup" (dari kolom KETERANGAN) diprioritaskan di atas status lain — berkas yang
             // sudah ditutup secara administratif TIDAK ikut dihitung sebagai Dalam Proses/Jatuh Tempo,
             // meski tanggal jatuh temponya sendiri sudah lewat.
+            // Status "Selesai" ditentukan dari KETERANGAN = "Diserahkan", DIVALIDASI SILANG dengan Posisi
+            // Terakhir yang harus persis "Loket Pelayanan Penyerahan". Kalau KETERANGAN bilang "Diserahkan"
+            // tapi posisinya bukan itu, datanya dianggap TIDAK KONSISTEN — tidak dianggap Selesai, status
+            // tetap dihitung dari tanggal jatuh tempo seperti biasa, tapi ditandai (dataTidakKonsisten) supaya
+            // terlihat di dashboard sbg sesuatu yang perlu dicek ulang oleh admin data.
             let status;
-            if (keterangan === "Ditutup") status = "Ditutup";
-            else if (tanggalDiserahkan) status = "Selesai";
-            else if (jatuhTempo && worldNow && jatuhTempo.getTime() < worldNow.getTime()) status = "JatuhTempo";
-            else status = "Proses";
+            let dataTidakKonsisten = false;
+            if (keterangan === "Ditutup") {
+                status = "Ditutup";
+            } else if (keterangan === "Diserahkan") {
+                if (posisiTerakhir === POSISI_LOKET_PENYERAHAN) {
+                    status = "Selesai";
+                } else {
+                    dataTidakKonsisten = true;
+                    status = statusDariTanggal(jatuhTempo);
+                }
+            } else if (tanggalDiserahkan) {
+                status = "Selesai";
+            } else {
+                status = statusDariTanggal(jatuhTempo);
+            }
 
             parsed.push({
                 no: (cols[0] || "").trim(), nomor, tahun: (cols[2] || "").trim(),
-                tanggalTerdaftar, jatuhTempo, tanggalDiserahkan, keterangan,
+                tanggalTerdaftar, jatuhTempo, tanggalDiserahkan, keterangan, dataTidakKonsisten,
                 namaKegiatan: (cols[7] || "").trim() || "Lainnya",
                 namaPemohon: (cols[8] || "").trim(),
-                posisiTerakhir: (cols[9] || "").trim() || "Tidak Diketahui",
+                posisiTerakhir,
                 layananItems, totalPnbp, status
             });
         }
@@ -966,10 +991,24 @@
             if (parsed.length === 0) throw new Error('CSV kosong/tidak ada baris valid');
             // Status dihitung ulang sekarang worldNow sudah pasti terisi (parseRows tahap pertama mungkin belum punya worldNow saat pemanggilan awal)
             parsed.forEach(d => {
-                if (d.keterangan === "Ditutup") d.status = "Ditutup";
-                else if (d.tanggalDiserahkan) d.status = "Selesai";
-                else if (d.jatuhTempo && d.jatuhTempo.getTime() < worldNow.getTime()) d.status = "JatuhTempo";
-                else d.status = "Proses";
+                if (d.keterangan === "Ditutup") {
+                    d.status = "Ditutup";
+                    d.dataTidakKonsisten = false;
+                } else if (d.keterangan === "Diserahkan") {
+                    if (d.posisiTerakhir === POSISI_LOKET_PENYERAHAN) {
+                        d.status = "Selesai";
+                        d.dataTidakKonsisten = false;
+                    } else {
+                        d.dataTidakKonsisten = true;
+                        d.status = statusDariTanggal(d.jatuhTempo);
+                    }
+                } else if (d.tanggalDiserahkan) {
+                    d.status = "Selesai";
+                    d.dataTidakKonsisten = false;
+                } else {
+                    d.status = statusDariTanggal(d.jatuhTempo);
+                    d.dataTidakKonsisten = false;
+                }
             });
             dataAll = parsed;
             let uploadHist = recordUploadEvent(text);
@@ -1135,7 +1174,14 @@
             palingSentence = ` <b>Sorot Prioritas:</b> berkas paling lama tertunda adalah <span class="underline decoration-dotted decoration-white cursor-pointer hover:bg-white/10 rounded font-semibold" onclick="gotoNomor('${d.nomor}')" title="Klik untuk lihat detail berkas ini">No. ${d.nomor}</span> (${d.namaKegiatan}, posisi ${d.posisiTerakhir}), sudah terlambat <b>${fmt(telat)} hari</b> — perlu perhatian prioritas.`;
         }
 
-        el.innerHTML = main + jatuhTempoSentence + palingSentence;
+        // Data tidak konsisten: KETERANGAN = "Diserahkan" tapi Posisi Terakhir bukan Loket Pelayanan Penyerahan
+        let tidakKonsisten = data.filter(d => d.dataTidakKonsisten);
+        let konsistenSentence = "";
+        if (tidakKonsisten.length > 0) {
+            konsistenSentence = ` <b>Peringatan Data:</b> <span class="underline decoration-dotted decoration-amber-300 cursor-pointer hover:bg-white/10 rounded" title="Klik untuk lihat detail"><b>${fmt(tidakKonsisten.length)} berkas</b> tercatat KETERANGAN "Diserahkan" tapi Posisi Terakhir bukan "Loket Pelayanan Penyerahan" — perlu dicek ulang oleh admin data. <i class="fa-solid fa-triangle-exclamation text-[9px]"></i></span>`;
+        }
+
+        el.innerHTML = main + jatuhTempoSentence + palingSentence + konsistenSentence;
     }
 
     function statusBadgeClass(status) {
@@ -1393,8 +1439,10 @@
                     <td class="p-2">${d.namaKegiatan}</td>
                     <td class="p-2 text-slate-500">${d.namaPemohon || '-'}</td>
                     <td class="p-2 text-slate-500">${d.posisiTerakhir}</td>
-                    <td class="p-2 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${statusBadgeClass(d.status)}">${statusLabel(d.status)}</span></td>
-                    <td class="p-2 text-center">${urgencyBadge(d)}</td>
+                    <td class="p-2 text-center">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${statusBadgeClass(d.status)}">${statusLabel(d.status)}</span>
+                        ${d.dataTidakKonsisten ? `<i class="fa-solid fa-triangle-exclamation text-amber-500 ml-1" title="Data tidak konsisten: KETERANGAN tertulis Diserahkan, tapi Posisi Terakhir bukan &quot;Loket Pelayanan Penyerahan&quot; (tercatat: ${d.posisiTerakhir}). Perlu dicek ulang oleh admin data."></i>` : ''}
+                    </td>
                     <td class="p-2 text-right">
                         <div class="font-semibold">${formatRupiah(d.totalPnbp)}</div>
                         ${layananHtml}
