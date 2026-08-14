@@ -312,6 +312,7 @@
         <p class="text-[9px] text-slate-400 mt-1.5">
             Diisi oleh Posisi Terakhir untuk melaporkan alasan, kondisi saat ini, dan rencana aksi atas berkas Jatuh Tempo.
         </p>
+        <p id="renaksiFooterStatus" class="text-[9px] text-slate-500 mt-1 max-w-md mx-auto leading-relaxed"></p>
     </footer>
 
 </div>
@@ -409,8 +410,12 @@
             </div>
             <div>
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nama Petugas yang Mengisi <span class="text-coral-500">*</span></label>
-                <input id="renaksiFieldNamaPetugas" type="text" placeholder="Nama lengkap Anda (sebagai bentuk pertanggungjawaban)..."
-                       class="w-full mt-1 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2.5 focus:ring-2 focus:ring-coral-500">
+                <select id="renaksiFieldNamaPetugas" onchange="onRenaksiPetugasChange()"
+                        class="w-full mt-1 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2.5 focus:ring-2 focus:ring-coral-500">
+                    <option value="">— Pilih Nama Petugas —</option>
+                </select>
+                <input id="renaksiFieldNamaPetugasManual" type="text" placeholder="Nama & jabatan Anda tidak ada di daftar? Tulis manual di sini..."
+                       class="hidden w-full mt-2 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2.5 focus:ring-2 focus:ring-coral-500">
             </div>
             <div class="grid grid-cols-1 gap-2">
                 <div>
@@ -424,18 +429,28 @@
             </div>
             <div>
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Alasan Jatuh Tempo <span class="text-coral-500">*</span></label>
-                <textarea id="renaksiFieldAlasan" rows="2" placeholder="Jelaskan penyebab berkas ini melewati batas waktu..."
-                          class="w-full mt-1 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2.5 focus:ring-2 focus:ring-coral-500"></textarea>
+                <select id="renaksiFieldAlasan" onchange="onRenaksiAlasanChange()"
+                        class="w-full mt-1 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2.5 focus:ring-2 focus:ring-coral-500">
+                    <option value="">— Pilih Alasan —</option>
+                </select>
             </div>
             <div>
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Kondisi Saat Ini</label>
-                <textarea id="renaksiFieldKondisi" rows="2" placeholder="Sejauh mana progres saat ini..."
-                          class="w-full mt-1 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2.5 focus:ring-2 focus:ring-coral-500"></textarea>
+                <select id="renaksiFieldKondisi" onchange="onRenaksiManualToggle('kondisi')"
+                        class="w-full mt-1 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2.5 focus:ring-2 focus:ring-coral-500">
+                    <option value="">— Pilih Alasan dahulu —</option>
+                </select>
+                <textarea id="renaksiFieldKondisiManual" rows="2" placeholder="Tulis kondisi saat ini secara manual..."
+                          class="hidden w-full mt-2 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2.5 focus:ring-2 focus:ring-coral-500"></textarea>
             </div>
             <div>
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Rencana Aksi Penyelesaian <span class="text-coral-500">*</span></label>
-                <textarea id="renaksiFieldRencana" rows="2" placeholder="Langkah konkret & target waktu penyelesaian..."
-                          class="w-full mt-1 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2.5 focus:ring-2 focus:ring-coral-500"></textarea>
+                <select id="renaksiFieldRencana" onchange="onRenaksiManualToggle('rencana')"
+                        class="w-full mt-1 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2.5 focus:ring-2 focus:ring-coral-500">
+                    <option value="">— Pilih Alasan dahulu —</option>
+                </select>
+                <textarea id="renaksiFieldRencanaManual" rows="2" placeholder="Tulis rencana aksi secara manual..."
+                          class="hidden w-full mt-2 bg-white border border-slate-300 text-slate-700 text-xs rounded-lg p-2.5 focus:ring-2 focus:ring-coral-500"></textarea>
             </div>
             <div>
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Estimasi Tanggal Selesai</label>
@@ -485,6 +500,205 @@
     // 6 Alasan Jatuh Tempo | 7 Kondisi Saat Ini | 8 Rencana Aksi Penyelesaian | 9 Estimasi Tanggal Selesai
     // PENTING: kolom "Tahun" WAJIB ada — No. Berkas bisa terpakai ulang di tahun berbeda sbg berkas yang
     // benar-benar berbeda, jadi pencocokan riwayat renaksi selalu memakai kunci gabungan No.Berkas+Tahun.
+
+    // Daftar pilihan Alasan Jatuh Tempo yang umum terjadi di pelayanan pertanahan — masing-masing punya
+    // pasangan Kondisi Saat Ini & Rencana Aksi yang LOGIS & SALING TERKAIT (memilih satu Alasan otomatis
+    // menyaring pilihan Kondisi/Rencana yang relevan saja), supaya petugas tinggal memilih dari dropdown
+    // dan mengisi tanggal estimasi, tanpa perlu mengetik panjang. Opsi "Lainnya" selalu tersedia di tiap
+    // dropdown utk kasus di luar daftar ini (isi manual).
+    const RENAKSI_ALASAN_OPTIONS = [
+        {
+            key: 'persyaratan',
+            label: 'Persyaratan belum lengkap sesuai ketentuan',
+            kondisi: [
+                'Menunggu kelengkapan dokumen dari pemohon',
+                'Sudah dikonfirmasi ke pemohon, belum ada tindak lanjut',
+                'Dokumen sudah diterima sebagian, masih ada yang kurang'
+            ],
+            rencana: [
+                'Menghubungi/menyurati pemohon untuk melengkapi persyaratan',
+                'Memberi batas waktu tambahan kepada pemohon',
+                'Mengusulkan penutupan berkas jika tidak dilengkapi dalam batas waktu'
+            ]
+        },
+        {
+            key: 'tumpang_tindih',
+            label: 'Tumpang tindih / sengketa batas bidang tanah',
+            kondisi: [
+                'Sedang dilakukan pengecekan lapangan / pengukuran ulang',
+                'Menunggu klarifikasi dengan pemegang hak yang bersinggungan',
+                'Kasus telah dilimpahkan ke unit penanganan sengketa'
+            ],
+            rencana: [
+                'Melakukan pengukuran ulang / verifikasi lapangan',
+                'Mengoordinasikan penyelesaian dengan pihak yang bersinggungan',
+                'Melimpahkan ke unit penanganan sengketa untuk mediasi'
+            ]
+        },
+        {
+            key: 'beban_kerja',
+            label: 'Beban kerja tinggi / antrean berkas',
+            kondisi: [
+                'Berkas masih dalam antrean sesuai urutan masuk',
+                'Sedang diprioritaskan bertahap sesuai kapasitas harian'
+            ],
+            rencana: [
+                'Menambah kapasitas penyelesaian harian sesuai arahan pimpinan',
+                'Melibatkan petugas lain untuk membantu percepatan',
+                'Mengajukan penambahan sumber daya / lembur'
+            ]
+        },
+        {
+            key: 'keterbatasan_petugas',
+            label: 'Keterbatasan petugas / kompetensi teknis',
+            kondisi: [
+                'Petugas berwenang sedang menangani berkas lain / cuti / tugas luar',
+                'Membutuhkan petugas dengan kompetensi teknis khusus yang belum tersedia'
+            ],
+            rencana: [
+                'Realokasi / penambahan petugas untuk kegiatan ini',
+                'Menjadwalkan penyelesaian setelah petugas terkait kembali bertugas',
+                'Berkoordinasi dengan atasan untuk penunjukan petugas pengganti'
+            ]
+        },
+        {
+            key: 'sistem_error',
+            label: 'Kendala sistem / gangguan aplikasi',
+            kondisi: [
+                'Sistem/aplikasi sedang mengalami gangguan',
+                'Menunggu perbaikan dari tim IT / pusat'
+            ],
+            rencana: [
+                'Melaporkan kendala ke helpdesk / tim IT',
+                'Memproses secara manual sementara sistem bermasalah',
+                'Menunggu sistem normal kembali lalu melanjutkan proses'
+            ]
+        },
+        {
+            key: 'korespondensi',
+            label: 'Menunggu korespondensi / instansi lain',
+            kondisi: [
+                'Sudah mengirim surat/permintaan, menunggu balasan',
+                'Sedang berkoordinasi dengan instansi terkait (Pemda, Pengadilan, dll.)'
+            ],
+            rencana: [
+                'Mengirim surat susulan / follow-up ke instansi terkait',
+                'Menjadwalkan koordinasi langsung dengan instansi terkait',
+                'Menunggu balasan resmi sebelum melanjutkan proses'
+            ]
+        },
+        {
+            key: 'pemohon_pasif',
+            label: 'Pemohon pasif / tidak responsif',
+            kondisi: [
+                'Sudah dihubungi berulang kali, pemohon belum merespons',
+                'Alamat/kontak pemohon tidak dapat dihubungi'
+            ],
+            rencana: [
+                'Mengirim surat panggilan / pemberitahuan resmi ke pemohon',
+                'Memberi tenggat waktu terakhir sebelum berkas dinyatakan gugur',
+                'Melakukan kunjungan / konfirmasi langsung ke pemohon'
+            ]
+        },
+        {
+            key: 'lainnya',
+            label: 'Lainnya (jelaskan manual)',
+            kondisi: ['__manual__'],
+            rencana: ['__manual__']
+        }
+    ];
+    const RENAKSI_MANUAL_VALUE = '__manual__';
+
+    // Daftar Nama/Jabatan petugas PELAKSANA PELAYANAN PERTANAHAN (sumber: Data_Pegawai_Tahun_2026_update_
+    // Agustus_2026.xlsx, digabung dari sheet Seluruh ASN + ASK, 82 orang per Agustus 2026). Sheet "OB
+    // Satpam dan Supir" SENGAJA DIKECUALIKAN karena bukan pelaksana pelayanan pertanahan. Dipakai sbg
+    // dropdown "Nama Petugas" pada formulir Renaksi. CATATAN: daftar ini statis (ditempel langsung di
+    // kode) — kalau ada pegawai baru/mutasi/pensiun, minta versi Excel terbaru diedit ulang ke sini.
+    // Selalu urut alfabetis berdasarkan nama.
+    const RENAKSI_PETUGAS_LIST = [
+        { nama: "A'raaf Gaufar, S.H.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Ade Kusnandar", jabatan: "Penata Laksana Agraria dan Tata Ruang" },
+        { nama: "Adi Tiar Anugrah, SP.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Adnesti Wiraguna", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Ahmad Munardi, S.H.", jabatan: "Kepala Seksi Penataan dan Pemberdayaan" },
+        { nama: "Akhda Jauhari, S.T., M.A.P", jabatan: "Kepala Kantor Pertanahan Kabupaten Lebak" },
+        { nama: "Aldani Alam, S.H.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Aldin Derilianto, S.H., M.Kn.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Alvionita Desliyanti Karundeng, S.H.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Amrinif, S.H., M.Kn.", jabatan: "Kepala Seksi Pengendalian dan Penanganan Sengketa" },
+        { nama: "Anang Sumardyanto, S.E.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Andi Jenriahman", jabatan: "Asisten Surveyor Kadastral" },
+        { nama: "Andi Mohamad Yusuf", jabatan: "Asisten Surveyor Kadastral" },
+        { nama: "Anisa Ayu Wardhani, S.H.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Anita Riyani", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Ari Setiawan, S.H.", jabatan: "Penata Pertanahan Ahli Pertama" },
+        { nama: "Arif Hidayat, S.H.I.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Asep Barkah Fauzi", jabatan: "Asisten Surveyor Kadastral" },
+        { nama: "Asep Dedi Supriadi", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Baedillah", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Bhakti Rudini", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Budiyanto, S.SiT., M.M.", jabatan: "Penata Kadastral Ahli Muda" },
+        { nama: "Bustanil, S.H.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Cecep Ressana Yuniandra, S.H.", jabatan: "Penata Pertanahan Ahli Pertama" },
+        { nama: "Cecep Sudana, S.E.", jabatan: "Penelaah Teknis Kebijakan" },
+        { nama: "Deden Prayoga Islami, A.Md. Kom.", jabatan: "Pengolah Data dan Informasi" },
+        { nama: "Deni Kusnadi, A.Md.", jabatan: "Pengelola Layanan Pertanahan" },
+        { nama: "Desy Rachmadianti, S.M.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Devi Zulvian", jabatan: "Asisten Surveyor Kadastral" },
+        { nama: "Devia Putri Listianti", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Diki", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Diki Medianto, S.T.", jabatan: "Operator Layanan Operasional" },
+        { nama: "Diky Mohammad Sidiq, A.Md.", jabatan: "Pengelola Layanan Pertanahan" },
+        { nama: "Dita Kharismawati, S.H.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Dodi Yunaldi", jabatan: "Operator Layanan Operasional" },
+        { nama: "Dony", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Edi Asmadi", jabatan: "Operator Layanan Operasional" },
+        { nama: "Eka Jaenal", jabatan: "Asisten Surveyor Kadastral" },
+        { nama: "Fahri Ahmad Yanuar", jabatan: "Asisten Surveyor Kadastral" },
+        { nama: "Firmansyah, S.H.", jabatan: "Penata Layanan Operasional" },
+        { nama: "H Sumiyo, S.H., QRMO.", jabatan: "Kepala Sub Bagian Tata Usaha" },
+        { nama: "Hasan Muhtar", jabatan: "Operator Layanan Operasional" },
+        { nama: "Hilman Ficky F. Pangaribuan, S.H.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Ilham Syaifudin Pratama", jabatan: "Surveyor Kadastral" },
+        { nama: "Imam Lutfi", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Imam Nurkholis", jabatan: "Asisten Surveyor Kadastral" },
+        { nama: "Indra Tauvik", jabatan: "Asisten Surveyor Kadastral" },
+        { nama: "Iwan Suharwan", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Joko Suhendro, S.H., M.H., QRMP.", jabatan: "Kepala Seksi Pengadaan Tanah dan Pengembangan" },
+        { nama: "Kusnaedi", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Kuswanto, S.H.", jabatan: "Penata Pertanahan Ahli Pertama" },
+        { nama: "Lia Ari Widiani, S.H.", jabatan: "Penata Pertanahan Ahli Pertama" },
+        { nama: "Lilis Novianti, S.M.", jabatan: "Penata Layanan Operasional" },
+        { nama: "M. Yusuf Juhada, S.E.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Marrio Ekasaputra, S.H., M.H.", jabatan: "Penata Kadastral Ahli Muda" },
+        { nama: "Mas Rizky Oktaviana", jabatan: "Asisten Surveyor Kadastral" },
+        { nama: "Mas Suryana", jabatan: "Operator Layanan Operasional" },
+        { nama: "Mey Frida Waita, S.Ikom.", jabatan: "Penggerak Swadaya Masyarakat Ahli Pertama" },
+        { nama: "Moch Karyawan", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Mochamad Fadly Gintara", jabatan: "Asisten Surveyor Kadastral" },
+        { nama: "Mohamad Ikhsan Nugraha, S.Sos.", jabatan: "Kepala Seksi Penetapan Hak dan Pendaftaran" },
+        { nama: "Muhamad Ikmal Ashari", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Mustika Utami, S.H.", jabatan: "Penata Pertanahan Ahli Pertama" },
+        { nama: "Nursaadah, S.H.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Nurul Khotimah, S.M.", jabatan: "Analis Sumber Daya Manusia Aparatur Pertama" },
+        { nama: "Ongky Sepbelda Andrenelson", jabatan: "Surveyor Kadastral" },
+        { nama: "Rasmana, A.Md.", jabatan: "Pengelola Layanan Pertanahan" },
+        { nama: "Rina Kurniasari, S.Sos.", jabatan: "Penata Pertanahan Ahli Pertama" },
+        { nama: "Rindi Desi Widiyanti, S.H.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Rizq Gysta Prayoga, S.T.", jabatan: "Penata Kadastral Ahli Pertama" },
+        { nama: "Robiyanto Budi Prasetyo", jabatan: "Asisten Surveyor Kadastral" },
+        { nama: "Roby Dwi Abissalam", jabatan: "Asisten Surveyor Kadastral" },
+        { nama: "Shodiq Munawar, S.S.T.,M.H.", jabatan: "Kepala Seksi Survei dan Pemetaan" },
+        { nama: "Singgih Nur Permana, A.Md.", jabatan: "Penata Laksana Agraria dan Tata Ruang" },
+        { nama: "Taufik Nursanto S.Tr.", jabatan: "Penata Kadastral Ahli Pertama" },
+        { nama: "Tedi Setiadi, S.H.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Umayah", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Uus Mustariah", jabatan: "Pengadministrasi Perkantoran" },
+        { nama: "Widianingsih, S.Pd.", jabatan: "Penata Layanan Operasional" },
+        { nama: "Yana Suryana, S.H.", jabatan: "Penata Kadastral Ahli Pertama" },
+        { nama: "Yeni Sumiati,S.Sos.", jabatan: "Penata Pertanahan Ahli Muda" },
+        { nama: "Zaki Aizar", jabatan: "Asisten Surveyor Kadastral" },
+    ];
 
     // ============ STATE ============
     let dataAll = [];
@@ -740,6 +954,7 @@
         renderRankingTable(data);
         renderArahan(data);
         renderProsesJatuhTempoTable(data);
+        renderRenaksiFooterStatus(data);
         renderDetailTable(data);
         renderDonut(data);
         clearSkeletons();
@@ -1018,6 +1233,25 @@
         document.getElementById('tbodyProsesJt').innerHTML = html || `<tr><td colspan="5" class="p-4 text-center text-slate-400">Tidak ada berkas Dalam Proses dengan tanggal jatuh tempo.</td></tr>`;
     }
 
+    // Keterangan dinamis di footer, di bawah tombol RENAKSI PENYELESAIAN — supaya informatif (menunjukkan
+    // status terkini: sudah berapa yang diisi vs yang belum) dan evaluatif (mengarahkan perhatian ke tabel
+    // Peringkat Jatuh Tempo per Posisi & Arahan Penyelesaian di atas utk rincian per jenis kegiatan/petugas).
+    function renderRenaksiFooterStatus(data) {
+        let el = document.getElementById('renaksiFooterStatus');
+        if (!el) return;
+        let jt = data.filter(d => d.status === "JatuhTempo");
+        if (jt.length === 0) {
+            el.innerHTML = "Tidak ada berkas Jatuh Tempo saat ini — belum ada Renaksi yang perlu diisi.";
+            return;
+        }
+        let belum = jt.filter(d => !isRenaksiLocked(d));
+        if (belum.length === 0) {
+            el.innerHTML = `Seluruh <b>${fmt(jt.length)}</b> berkas Jatuh Tempo sudah memiliki Renaksi untuk posisi saat ini.`;
+        } else {
+            el.innerHTML = `Saat ini <b class="text-coral-600">${fmt(belum.length)}</b> dari <b>${fmt(jt.length)}</b> berkas Jatuh Tempo belum diisi Renaksi — lihat tabel <i>Peringkat Jatuh Tempo per Posisi</i> &amp; <i>Arahan Penyelesaian</i> di atas untuk rincian per jenis kegiatan dan petugas.`;
+        }
+    }
+
     // Klik baris peringkat: filter Rincian Data Berkas & Diagram Donat ke posisi tsb KHUSUS status Jatuh Tempo
     function selectRanking(posisi) {
         if (activePosisi === posisi && activeStatus === "JatuhTempo") {
@@ -1204,10 +1438,15 @@
         document.getElementById('renaksiSelectEmptyNote').classList.toggle('hidden', jatuhTempoList.length > 0);
 
         // reset field isian setiap kali formulir dibuka
+        populateRenaksiPetugasDropdown();
         document.getElementById('renaksiFieldNamaPetugas').value = "";
+        document.getElementById('renaksiFieldNamaPetugasManual').value = "";
+        document.getElementById('renaksiFieldNamaPetugasManual').classList.add('hidden');
+        populateRenaksiAlasanDropdown();
         document.getElementById('renaksiFieldAlasan').value = "";
-        document.getElementById('renaksiFieldKondisi').value = "";
-        document.getElementById('renaksiFieldRencana').value = "";
+        onRenaksiAlasanChange(); // reset dropdown Kondisi/Rencana ke placeholder & sembunyikan kotak manual
+        document.getElementById('renaksiFieldKondisiManual').value = "";
+        document.getElementById('renaksiFieldRencanaManual').value = "";
         document.getElementById('renaksiFieldEstimasi').value = "";
         document.getElementById('renaksiSubmitStatus').classList.add('hidden');
 
@@ -1229,12 +1468,102 @@
         document.getElementById('renaksiFieldPosisi').value = d ? d.posisiTerakhir : "";
     }
 
+    // Isi dropdown Nama Petugas dari daftar pegawai (RENAKSI_PETUGAS_LIST) — format tampilan "Nama / Jabatan"
+    // sesuai permintaan, plus opsi "tidak ada di daftar" utk kasus di luar daftar (mis. pegawai baru/mutasi
+    // yang belum sempat ditambahkan ke daftar statis).
+    function populateRenaksiPetugasDropdown() {
+        let sel = document.getElementById('renaksiFieldNamaPetugas');
+        sel.innerHTML = `<option value="">— Pilih Nama Petugas —</option>` +
+            RENAKSI_PETUGAS_LIST.map((p, i) => `<option value="${i}">${p.nama} / ${p.jabatan}</option>`).join("") +
+            `<option value="${RENAKSI_MANUAL_VALUE}">Nama saya tidak ada di daftar (tulis manual)</option>`;
+    }
+    function onRenaksiPetugasChange() {
+        let val = document.getElementById('renaksiFieldNamaPetugas').value;
+        document.getElementById('renaksiFieldNamaPetugasManual').classList.toggle('hidden', val !== RENAKSI_MANUAL_VALUE);
+    }
+
+    function populateRenaksiAlasanDropdown() {
+        let sel = document.getElementById('renaksiFieldAlasan');
+        sel.innerHTML = `<option value="">— Pilih Alasan —</option>` +
+            RENAKSI_ALASAN_OPTIONS.map(o => `<option value="${o.key}">${o.label}</option>`).join("");
+    }
+
+    // Begitu Alasan dipilih, dropdown Kondisi Saat Ini & Rencana Aksi diisi ulang HANYA dengan pilihan yang
+    // logis/relevan terhadap Alasan tsb (data dari RENAKSI_ALASAN_OPTIONS) — supaya ketiganya selalu sejalan
+    // satu sama lain, bukan kombinasi bebas yang bisa tidak masuk akal. Opsi "Lainnya" selalu ditambahkan di
+    // akhir tiap dropdown utk kasus di luar daftar.
+    function onRenaksiAlasanChange() {
+        let alasanKey = document.getElementById('renaksiFieldAlasan').value;
+        let opt = RENAKSI_ALASAN_OPTIONS.find(o => o.key === alasanKey);
+        let kondisiSel = document.getElementById('renaksiFieldKondisi');
+        let rencanaSel = document.getElementById('renaksiFieldRencana');
+
+        function buildOptions(list) {
+            let html = list.map(v => v === RENAKSI_MANUAL_VALUE
+                ? `<option value="${RENAKSI_MANUAL_VALUE}">Lainnya (tulis manual)</option>`
+                : `<option value="${v.replace(/"/g, '&quot;')}">${v}</option>`).join("");
+            if (!list.includes(RENAKSI_MANUAL_VALUE)) html += `<option value="${RENAKSI_MANUAL_VALUE}">Lainnya (tulis manual)</option>`;
+            return html;
+        }
+
+        if (!opt) {
+            kondisiSel.innerHTML = `<option value="">— Pilih Alasan dahulu —</option>`;
+            rencanaSel.innerHTML = `<option value="">— Pilih Alasan dahulu —</option>`;
+        } else {
+            kondisiSel.innerHTML = `<option value="">— Pilih Kondisi —</option>` + buildOptions(opt.kondisi);
+            rencanaSel.innerHTML = `<option value="">— Pilih Rencana Aksi —</option>` + buildOptions(opt.rencana);
+        }
+        document.getElementById('renaksiFieldKondisiManual').classList.add('hidden');
+        document.getElementById('renaksiFieldRencanaManual').classList.add('hidden');
+    }
+
+    // Tampilkan kotak isian manual kalau opsi "Lainnya (tulis manual)" dipilih pada dropdown Kondisi/Rencana.
+    function onRenaksiManualToggle(which) {
+        let selId = which === 'kondisi' ? 'renaksiFieldKondisi' : 'renaksiFieldRencana';
+        let manualId = which === 'kondisi' ? 'renaksiFieldKondisiManual' : 'renaksiFieldRencanaManual';
+        let isManual = document.getElementById(selId).value === RENAKSI_MANUAL_VALUE;
+        document.getElementById(manualId).classList.toggle('hidden', !isManual);
+    }
+
+    // Ambil TEKS (label) dari opsi yang sedang terpilih pada suatu <select> — inilah yang disimpan sbg isi
+    // Alasan/Kondisi/Rencana (kalimat lengkap yang informatif), bukan value/key mentahnya.
+    function selectedOptionText(id) {
+        let sel = document.getElementById(id);
+        if (!sel || sel.selectedIndex < 0) return "";
+        let opt = sel.options[sel.selectedIndex];
+        return opt ? opt.text : "";
+    }
+
     async function submitRenaksi() {
         let key = document.getElementById('renaksiSelectNomor').value;
-        let namaPetugas = document.getElementById('renaksiFieldNamaPetugas').value.trim();
-        let alasan = document.getElementById('renaksiFieldAlasan').value.trim();
-        let kondisi = document.getElementById('renaksiFieldKondisi').value.trim();
-        let rencanaAksi = document.getElementById('renaksiFieldRencana').value.trim();
+        // Nama Petugas: dari dropdown (format "Nama / Jabatan") ATAU dari kotak manual kalau memilih
+        // "tidak ada di daftar".
+        let petugasSelVal = document.getElementById('renaksiFieldNamaPetugas').value;
+        let namaPetugas;
+        if (petugasSelVal === RENAKSI_MANUAL_VALUE) {
+            namaPetugas = document.getElementById('renaksiFieldNamaPetugasManual').value.trim();
+        } else if (petugasSelVal !== "") {
+            let p = RENAKSI_PETUGAS_LIST[parseInt(petugasSelVal, 10)];
+            namaPetugas = p ? `${p.nama} / ${p.jabatan}` : "";
+        } else {
+            namaPetugas = "";
+        }
+
+        // Alasan: selalu dari dropdown (teks lengkap opsi terpilih).
+        let alasan = document.getElementById('renaksiFieldAlasan').value ? selectedOptionText('renaksiFieldAlasan') : "";
+
+        // Kondisi & Rencana Aksi: kalau dropdown-nya "Lainnya (tulis manual)", ambil dari kotak manual;
+        // selain itu ambil teks lengkap opsi terpilih (supaya Alasan-Kondisi-Rencana selalu sejalan).
+        let kondisiSelVal = document.getElementById('renaksiFieldKondisi').value;
+        let kondisi = kondisiSelVal === RENAKSI_MANUAL_VALUE
+            ? document.getElementById('renaksiFieldKondisiManual').value.trim()
+            : (kondisiSelVal ? selectedOptionText('renaksiFieldKondisi') : "");
+
+        let rencanaSelVal = document.getElementById('renaksiFieldRencana').value;
+        let rencanaAksi = rencanaSelVal === RENAKSI_MANUAL_VALUE
+            ? document.getElementById('renaksiFieldRencanaManual').value.trim()
+            : (rencanaSelVal ? selectedOptionText('renaksiFieldRencana') : "");
+
         let estimasiSelesai = document.getElementById('renaksiFieldEstimasi').value;
         let statusEl = document.getElementById('renaksiSubmitStatus');
 
@@ -1246,7 +1575,8 @@
 
         if (!key) { showStatus("Pilih No. Berkas terlebih dahulu.", false); return; }
         if (!namaPetugas) { showStatus("Nama Petugas wajib diisi sebagai bentuk pertanggungjawaban.", false); return; }
-        if (!alasan || !rencanaAksi) { showStatus("Alasan Jatuh Tempo dan Rencana Aksi wajib diisi.", false); return; }
+        if (!alasan) { showStatus("Alasan Jatuh Tempo wajib dipilih.", false); return; }
+        if (!rencanaAksi) { showStatus("Rencana Aksi wajib dipilih (atau ditulis manual jika memilih \"Lainnya\").", false); return; }
         if (!RENAKSI_WEBAPP_URL) {
             showStatus("Belum tersambung ke Google Sheet — admin perlu mengisi RENAKSI_WEBAPP_URL (lihat komentar setup di bagian atas kode). Data belum terkirim.", false);
             return;
