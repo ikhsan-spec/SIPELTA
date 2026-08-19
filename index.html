@@ -909,6 +909,11 @@
     }
 
     const POSISI_LOKET_PENYERAHAN = "Loket Pelayanan Penyerahan";
+    // Normalisasi teks utk perbandingan yang TIDAK sensitif huruf besar/kecil maupun spasi berlebih —
+    // perlu karena data sumber (Google Sheet) kadang menulis "ditutup"/"DITUTUP"/" Ditutup " secara tidak
+    // konsisten, dan perbandingan ketat (===) akan gagal mengenalinya kalau hurufnya beda.
+    function normTeks(s) { return (s || "").trim().toLowerCase().replace(/\s+/g, " "); }
+    function samaTeks(a, b) { return normTeks(a) === normTeks(b); }
     // Menentukan status Proses/JatuhTempo murni dari tanggal jatuh tempo (dipakai di beberapa cabang logika
     // status supaya tidak duplikat kode).
     function statusDariTanggal(jatuhTempo) {
@@ -942,10 +947,10 @@
             // terlihat di dashboard sbg sesuatu yang perlu dicek ulang oleh admin data.
             let status;
             let dataTidakKonsisten = false;
-            if (keterangan === "Ditutup") {
+            if (samaTeks(keterangan, "Ditutup")) {
                 status = "Ditutup";
-            } else if (keterangan === "Diserahkan") {
-                if (posisiTerakhir === POSISI_LOKET_PENYERAHAN) {
+            } else if (samaTeks(keterangan, "Diserahkan")) {
+                if (samaTeks(posisiTerakhir, POSISI_LOKET_PENYERAHAN)) {
                     status = "Selesai";
                 } else {
                     dataTidakKonsisten = true;
@@ -991,11 +996,11 @@
             if (parsed.length === 0) throw new Error('CSV kosong/tidak ada baris valid');
             // Status dihitung ulang sekarang worldNow sudah pasti terisi (parseRows tahap pertama mungkin belum punya worldNow saat pemanggilan awal)
             parsed.forEach(d => {
-                if (d.keterangan === "Ditutup") {
+                if (samaTeks(d.keterangan, "Ditutup")) {
                     d.status = "Ditutup";
                     d.dataTidakKonsisten = false;
-                } else if (d.keterangan === "Diserahkan") {
-                    if (d.posisiTerakhir === POSISI_LOKET_PENYERAHAN) {
+                } else if (samaTeks(d.keterangan, "Diserahkan")) {
+                    if (samaTeks(d.posisiTerakhir, POSISI_LOKET_PENYERAHAN)) {
                         d.status = "Selesai";
                         d.dataTidakKonsisten = false;
                     } else {
