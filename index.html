@@ -56,6 +56,17 @@
         background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 2px, transparent 2px, transparent 26px);
     }
     @media print { .no-print { display: none !important; } body { background: #fff; } }
+
+    /* ============ MODE TV ============ */
+    body.tv-mode .tv-hide { display: none !important; }
+    body.tv-mode { background: #0a2f2a; }
+    body.tv-mode h1 { font-size: 2rem !important; }
+    body.tv-mode #kpiTotal, body.tv-mode #kpiBaru, body.tv-mode #kpiProses, body.tv-mode #kpiJatuhTempo,
+    body.tv-mode #kpiSelesai, body.tv-mode #kpiDitutup { font-size: 1.9rem !important; }
+    body.tv-mode #kpiPnbp { font-size: 1.4rem !important; }
+    body.tv-mode #narrativeInsight { font-size: 1rem !important; line-height: 1.6 !important; }
+    body.tv-mode table { font-size: 13px !important; }
+    body.tv-mode .max-h-80, body.tv-mode .max-h-96, body.tv-mode .max-h-\[420px\] { max-height: 480px !important; }
 </style>
 </head>
 <body class="p-4 md:p-8 text-[#182422]">
@@ -63,7 +74,7 @@
 <div class="max-w-7xl mx-auto space-y-6">
 
     <!-- HEADER -->
-    <header class="reveal relative overflow-hidden bg-gradient-to-br from-teal-900 via-teal-800 to-teal-900 text-white p-6 rounded-2xl shadow-xl">
+    <header id="tvSectionKpi" class="reveal relative overflow-hidden bg-gradient-to-br from-teal-900 via-teal-800 to-teal-900 text-white p-6 rounded-2xl shadow-xl">
         <div class="absolute inset-0 flow-texture pointer-events-none"></div>
         <div class="relative flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3 md:gap-4">
@@ -79,13 +90,16 @@
             </div>
             <div class="text-right flex flex-col items-end no-print">
                 <div class="flex items-center gap-2 flex-wrap justify-end">
-                    <button id="btnRefreshData" class="bg-coral-500 hover:bg-coral-400 text-white text-xs font-bold px-3 py-2 rounded-lg transition shadow flex items-center gap-2">
+                    <button id="btnTvMode" onclick="toggleTvMode()" class="bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold px-3 py-2 rounded-lg transition shadow flex items-center gap-2">
+                        <i class="fa-solid fa-tv"></i> Mode TV
+                    </button>
+                    <button id="btnRefreshData" class="tv-hide bg-coral-500 hover:bg-coral-400 text-white text-xs font-bold px-3 py-2 rounded-lg transition shadow flex items-center gap-2">
                         <i class="fa-solid fa-rotate"></i> Refresh Data
                     </button>
-                    <button id="btnExportExcel" class="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 py-2 rounded-lg transition shadow flex items-center gap-2">
+                    <button id="btnExportExcel" class="tv-hide bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 py-2 rounded-lg transition shadow flex items-center gap-2">
                         <i class="fa-solid fa-file-excel"></i> Excel
                     </button>
-                    <button id="btnPrintPdf" class="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 py-2 rounded-lg transition shadow flex items-center gap-2">
+                    <button id="btnPrintPdf" class="tv-hide bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 py-2 rounded-lg transition shadow flex items-center gap-2">
                         <i class="fa-solid fa-print"></i> Cetak/PDF
                     </button>
                 </div>
@@ -131,14 +145,14 @@
             <button type="button" onclick="openDitutupKpiCard()" class="text-left bg-slate-400/20 backdrop-blur-md p-3 rounded-xl border border-slate-300/20 hover:bg-slate-400/30 hover:border-slate-300/40 transition cursor-pointer">
                 <span class="text-[10px] text-slate-200 block uppercase tracking-wider">Ditutup</span>
                 <span id="kpiDitutup" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
-                <span id="kpiDitutupPnbp" class="text-[9px] text-slate-100/80 block mt-0.5">PNBP: Rp 0</span>
+                <span id="kpiDitutupPnbp" class="text-[9px] text-slate-100/80 block mt-0.5 whitespace-nowrap">PNBP: Rp 0</span>
             </button>
             <div class="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/10">
                 <span class="text-[10px] text-teal-200 block uppercase tracking-wider">Total Nilai PNBP</span>
-                <span id="kpiPnbp" class="text-lg md:text-xl font-bold text-white skeleton">Rp 0</span>
+                <span id="kpiPnbp" class="text-sm sm:text-base md:text-lg font-bold text-white skeleton whitespace-nowrap">Rp 0</span>
             </div>
         </div>
-        <p class="no-print relative text-[10px] text-teal-300/70 mt-2 flex items-center gap-1.5">
+        <p class="tv-hide no-print relative text-[10px] text-teal-300/70 mt-2 flex items-center gap-1.5">
             <i class="fa-solid fa-hand-pointer"></i> Klik salah satu angka di atas untuk melihat rincian tabel &amp; diagram.
         </p>
         <p class="relative text-center text-[11px] md:text-xs font-bold text-coral-200 mt-3 tracking-wide">
@@ -147,7 +161,7 @@
     </header>
 
     <!-- FILTER BAR -->
-    <section class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between no-print">
+    <section class="tv-hide bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between no-print">
         <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-filter text-teal-600 text-sm"></i>
@@ -226,7 +240,7 @@
     </div>
 
     <!-- PERINGKAT JATUH TEMPO PER POSISI — ALAT EVALUASI TANGGUNG JAWAB -->
-    <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <section id="tvSectionPeringkat" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="bg-gradient-to-r from-coral-700 to-coral-600 text-white px-5 py-3 flex justify-between items-center flex-wrap gap-2">
             <h2 class="font-display text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                 <i class="fa-solid fa-ranking-star text-coral-100"></i> Peringkat Jatuh Tempo per Posisi — Evaluasi Kinerja
@@ -265,7 +279,7 @@
     </section>
 
     <!-- DALAM PROSES — AKAN JATUH TEMPO (PERINGATAN DINI) -->
-    <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <section id="tvSectionProses" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="bg-gradient-to-r from-sky-700 to-sky-600 text-white px-5 py-3 flex justify-between items-center flex-wrap gap-2">
             <h2 class="font-display text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                 <i class="fa-solid fa-hourglass-half text-sky-100"></i> Dalam Proses — Akan Jatuh Tempo
@@ -317,7 +331,7 @@
                     <tbody id="tbodyDetail" class="divide-y divide-slate-100"></tbody>
                 </table>
             </div>
-            <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100 text-xs text-slate-500 flex-wrap gap-2 no-print">
+            <div class="tv-hide flex items-center justify-between px-4 py-3 border-t border-slate-100 text-xs text-slate-500 flex-wrap gap-2 no-print">
                 <span id="paginationInfo">Menampilkan 0 dari 0 data</span>
                 <div class="flex items-center gap-1">
                     <button id="btnPagePrev" class="w-7 h-7 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
@@ -381,18 +395,42 @@
         <p class="text-[10px] mt-1">
             <a href="https://aplikasi.atrbpn.go.id/" target="_blank" class="text-teal-700 hover:underline font-semibold">https://aplikasi.atrbpn.go.id/</a>
         </p>
-        <p class="mt-3">
+        <p class="tv-hide mt-3">
             <button type="button" onclick="openRenaksiSubmitModal(null)"
                class="no-print inline-flex items-center gap-2 bg-coral-600 hover:bg-coral-500 text-white text-[11px] font-bold px-4 py-2 rounded-lg transition shadow">
                 <i class="fa-solid fa-file-pen"></i> RENAKSI PENYELESAIAN KEGIATAN JATUH TEMPO
             </button>
         </p>
-        <p class="text-[9px] text-slate-400 mt-1.5">
+        <p class="tv-hide text-[9px] text-slate-400 mt-1.5">
             Diisi oleh Posisi Terakhir untuk melaporkan alasan, kondisi saat ini, dan rencana aksi atas berkas Jatuh Tempo.
         </p>
         <p id="renaksiFooterStatus" class="text-[9px] text-slate-500 mt-1 max-w-md mx-auto leading-relaxed"></p>
     </footer>
 
+</div>
+
+<!-- ============ MUSIK LATAR (ambient instrumental, hasil sintesis — bebas hak cipta) ============ -->
+<audio id="bgMusic" loop preload="none">
+    <source src="bg-music.mp3" type="audio/mpeg">
+</audio>
+<div id="musicControl" class="no-print fixed bottom-4 right-4 z-40 flex items-center gap-2 bg-slate-900/70 backdrop-blur-sm rounded-full px-3 py-2 text-white shadow-lg">
+    <button id="btnMusicToggle" onclick="toggleMusic()" title="Putar/Jeda musik latar" class="w-7 h-7 rounded-full hover:bg-white/10 flex items-center justify-center">
+        <i id="iconMusicToggle" class="fa-solid fa-play text-xs"></i>
+    </button>
+    <button id="btnMusicMute" onclick="toggleMusicMute()" title="Bisukan/Aktifkan suara" class="w-7 h-7 rounded-full hover:bg-white/10 flex items-center justify-center">
+        <i id="iconMusicMute" class="fa-solid fa-volume-high text-xs"></i>
+    </button>
+</div>
+
+<!-- ============ OVERLAY MULAI MODE TV (muncul otomatis kalau dibuka dg ?tv=1 — browser tetap wajib
+     1 sentuhan/klik utk mengizinkan layar penuh & audio berbunyi, ini batasan keamanan browser) ============ -->
+<div id="tvStartOverlay" class="hidden fixed inset-0 bg-teal-950/95 z-[60] flex flex-col items-center justify-center gap-4 text-center p-6">
+    <i class="fa-solid fa-tv text-5xl text-coral-300"></i>
+    <h2 class="font-display text-white text-xl font-bold">Mode TV — Sistem Informasi Pelayanan Pertanahan</h2>
+    <p class="text-teal-200 text-sm max-w-md">Sentuh/klik tombol di bawah ini sekali untuk memulai tampilan layar penuh beserta musik latar (browser mewajibkan satu sentuhan pertama demi keamanan).</p>
+    <button onclick="startTvFromOverlay()" class="bg-coral-500 hover:bg-coral-400 text-white font-bold px-6 py-3 rounded-xl shadow-lg text-sm flex items-center gap-2">
+        <i class="fa-solid fa-play"></i> Mulai Mode TV
+    </button>
 </div>
 
 <!-- ============ MODAL: RINCIAN KPI (tabel + diagram) ============ -->
@@ -428,15 +466,44 @@
                 </table>
             </div>
             <div class="border border-slate-200 rounded-xl p-4 flex flex-col items-center">
-                <span id="kpiModalDonutLabel" class="text-[10px] text-slate-400 mb-2 text-center">Kelompok: Nama Kegiatan</span>
-                <div class="w-full max-w-[200px] aspect-square relative">
-                    <canvas id="kpiModalDonutChart"></canvas>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span id="kpiModalDonutTotal" class="text-xl font-extrabold text-slate-800">0</span>
-                        <span class="text-[9px] text-slate-400 uppercase tracking-wider">Data</span>
+                <!-- Mode tunggal (fallback saat satu Nama Kegiatan spesifik dipilih dari dropdown) -->
+                <div id="kpiModalDonutSingleWrap" class="hidden w-full flex flex-col items-center">
+                    <span id="kpiModalDonutLabel" class="text-[10px] text-slate-400 mb-2 text-center">Kelompok: Posisi Terakhir</span>
+                    <div class="w-full max-w-[200px] aspect-square relative">
+                        <canvas id="kpiModalDonutChart"></canvas>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <span id="kpiModalDonutTotal" class="text-xl font-extrabold text-slate-800">0</span>
+                            <span class="text-[9px] text-slate-400 uppercase tracking-wider">Data</span>
+                        </div>
+                    </div>
+                    <div id="kpiModalLegend" class="mt-3 grid grid-cols-1 gap-1 text-[10px] w-full"></div>
+                </div>
+                <!-- Mode ganda (default, saat "Semua Kegiatan") — dua diagram sekaligus, sama seperti fitur
+                     dua-diagram di panel utama, supaya lebih informatif. -->
+                <div id="kpiModalDonutDualWrap" class="w-full flex flex-col gap-5">
+                    <div class="w-full flex flex-col items-center">
+                        <span id="kpiModalDonutLabelA" class="text-[10px] text-slate-400 mb-2 text-center">Kelompok: Nama Kegiatan</span>
+                        <div class="w-full max-w-[180px] aspect-square relative">
+                            <canvas id="kpiModalDonutChartA"></canvas>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span id="kpiModalDonutTotalA" class="text-lg font-extrabold text-slate-800">0</span>
+                                <span class="text-[9px] text-slate-400 uppercase tracking-wider">Data</span>
+                            </div>
+                        </div>
+                        <div id="kpiModalLegendA" class="mt-3 grid grid-cols-1 gap-1 text-[10px] w-full"></div>
+                    </div>
+                    <div class="w-full flex flex-col items-center border-t border-slate-100 pt-5">
+                        <span id="kpiModalDonutLabelB" class="text-[10px] text-slate-400 mb-2 text-center">Kelompok: Posisi Terakhir</span>
+                        <div class="w-full max-w-[180px] aspect-square relative">
+                            <canvas id="kpiModalDonutChartB"></canvas>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span id="kpiModalDonutTotalB" class="text-lg font-extrabold text-slate-800">0</span>
+                                <span class="text-[9px] text-slate-400 uppercase tracking-wider">Data</span>
+                            </div>
+                        </div>
+                        <div id="kpiModalLegendB" class="mt-3 grid grid-cols-1 gap-1 text-[10px] w-full"></div>
                     </div>
                 </div>
-                <div id="kpiModalLegend" class="mt-3 grid grid-cols-1 gap-1 text-[10px] w-full"></div>
             </div>
         </div>
     </div>
@@ -786,14 +853,16 @@
     let activeKegiatan = null;
     let detailPage = 1;
     const PAGE_SIZE = 50;
-    let donutChartInstances = {};  // map canvasId -> Chart instance (mendukung mode tunggal & ganda sekaligus)
-    let modalDonutChartInstance = null;
+    let donutChartInstances = {};  // map canvasId -> Chart instance (mendukung mode tunggal & ganda sekaligus, dipakai panel utama & modal KPI)
     let renaksiMap = {};        // nomor -> array riwayat renaksi (terurut terbaru dulu)
     let renaksiLoaded = false;
 
     // ============ UTIL ============
     function fmt(n) { return new Intl.NumberFormat('id-ID').format(Math.round(n || 0)); }
     function formatRupiah(n) { return 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(n || 0)); }
+    // Varian dengan spasi TANPA-PUTUS (non-breaking space) antara "Rp" dan angkanya — dipakai khusus di
+    // tempat sempit (kartu KPI) supaya "Rp" tidak pernah terpisah baris dari angkanya sendiri.
+    function formatRupiahNbsp(n) { return 'Rp\u00A0' + new Intl.NumberFormat('id-ID').format(Math.round(n || 0)); }
     function getTglLabel(d) { return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric' }).format(d); }
     function dateOnly(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
     function isSameDate(a, b) { return !!a && !!b && dateOnly(a).getTime() === dateOnly(b).getTime(); }
@@ -1128,11 +1197,11 @@
         document.getElementById('kpiProses').innerText = fmt(data.filter(d => d.status === "Proses").length);
         document.getElementById('kpiJatuhTempo').innerText = fmt(data.filter(d => d.status === "JatuhTempo").length);
         document.getElementById('kpiSelesai').innerText = fmt(data.filter(d => d.status === "Selesai").length);
-        document.getElementById('kpiPnbp').innerText = formatRupiah(aktif.reduce((s, d) => s + d.totalPnbp, 0));
+        document.getElementById('kpiPnbp').innerText = formatRupiahNbsp(aktif.reduce((s, d) => s + d.totalPnbp, 0));
 
         let ditutup = data.filter(d => d.status === "Ditutup");
         document.getElementById('kpiDitutup').innerText = fmt(ditutup.length);
-        document.getElementById('kpiDitutupPnbp').innerText = 'PNBP: ' + formatRupiah(ditutup.reduce((s, d) => s + d.totalPnbp, 0));
+        document.getElementById('kpiDitutupPnbp').innerText = 'PNBP:\u00A0' + formatRupiahNbsp(ditutup.reduce((s, d) => s + d.totalPnbp, 0));
 
         let baru = getBerkasBaru(data);
         document.getElementById('kpiBaru').innerText = fmt(baru.all.length);
@@ -1877,55 +1946,29 @@
             </tr>`).join("");
         document.getElementById('kpiModalTbody').innerHTML = rows || `<tr><td colspan="7" class="p-4 text-center text-slate-400">Tidak ada data</td></tr>`;
 
-        // Saat "Semua Kegiatan" dipilih: diagram dikelompokkan per Nama Kegiatan (atau per Status khusus utk
-        // KPI "Berkas Baru", karena isinya campuran status) — TIDAK PERNAH per Posisi di tahap ini, supaya
-        // tidak ada kesan datanya "mengarah ke posisi lain" yang tidak terkait.
-        // Begitu satu Nama Kegiatan dipilih dari dropdown, diagram baru boleh menunjukkan Posisi Terakhir —
-        // karena saat itu cakupannya sudah jelas & tunggal (satu jenis kegiatan saja), tidak lagi ambigu.
-        let mode = selKeg !== "ALL" ? 'posisi' : (kpiModalKind === 'baru' ? 'status' : 'kegiatan');
-        renderKpiModalDonut(data, mode);
+        // Mode GANDA (default, saat "Semua Kegiatan"): dua diagram sekaligus — Nama Kegiatan + Posisi
+        // Terakhir (atau Status Berkas + Nama Kegiatan khusus KPI "Berkas Baru", krn isinya campuran status).
+        // Mode TUNGGAL (saat satu Kegiatan spesifik dipilih): cuma Posisi Terakhir — krn Kegiatan sudah pasti
+        // satu jenis, dobel diagram jadi tidak berguna. Memakai fungsi generik yang sama dgn panel utama.
+        let dualMode = (selKeg === "ALL");
+        document.getElementById('kpiModalDonutSingleWrap').classList.toggle('hidden', dualMode);
+        document.getElementById('kpiModalDonutDualWrap').classList.toggle('hidden', !dualMode);
+
+        if (dualMode) {
+            let firstField = kpiModalKind === 'baru' ? 'status' : 'namaKegiatan';
+            document.getElementById('kpiModalDonutLabelA').innerText = kpiModalKind === 'baru' ? 'Kelompok: Status Berkas' : 'Kelompok: Nama Kegiatan';
+            renderDonutFieldOrStatusInto(data, firstField, 'kpiModalDonutChartA', 'kpiModalDonutTotalA', 'kpiModalLegendA');
+            document.getElementById('kpiModalDonutLabelB').innerText = 'Kelompok: Posisi Terakhir';
+            renderDonutFieldInto(data, 'posisiTerakhir', 'kpiModalDonutChartB', 'kpiModalDonutTotalB', 'kpiModalLegendB');
+        } else {
+            document.getElementById('kpiModalDonutLabel').innerText = 'Kelompok: Posisi Terakhir';
+            renderDonutFieldInto(data, 'posisiTerakhir', 'kpiModalDonutChart', 'kpiModalDonutTotal', 'kpiModalLegend');
+        }
     }
 
-    function renderKpiModalDonut(data, mode) {
-        let field = mode === 'status' ? 'status' : (mode === 'posisi' ? 'posisiTerakhir' : 'namaKegiatan');
-        let labelText = mode === 'status' ? 'Kelompok: Status Berkas' : (mode === 'posisi' ? 'Kelompok: Posisi Terakhir' : 'Kelompok: Nama Kegiatan');
-        let labelEl = document.getElementById('kpiModalDonutLabel');
-        if (labelEl) labelEl.innerText = labelText;
-
-        let grouped = {};
-        data.forEach(d => {
-            let k = field === 'status' ? statusLabel(d.status) : (d[field] || "Lainnya");
-            grouped[k] = (grouped[k] || 0) + 1;
-        });
-        let entries = Object.entries(grouped).sort((a, b) => b[1] - a[1]);
-        const MAX_SLICE = 8;
-        let top = entries.slice(0, MAX_SLICE);
-        let rest = entries.slice(MAX_SLICE);
-        if (rest.length > 0) top.push([`Lainnya (${rest.length})`, rest.reduce((s, [, v]) => s + v, 0)]);
-
-        let labels = top.map(([k]) => k);
-        let values = top.map(([, v]) => v);
-        let colors = generateColorPalette(labels.length);
-        let total = data.length;
-
-        document.getElementById('kpiModalDonutTotal').innerText = fmt(total);
-        let ctx = document.getElementById('kpiModalDonutChart').getContext('2d');
-        if (modalDonutChartInstance) modalDonutChartInstance.destroy();
-        modalDonutChartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff', hoverOffset: 6 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '68%' }
-        });
-
-        let legendHtml = "";
-        labels.forEach((l, i) => {
-            let pct = total > 0 ? ((values[i] / total) * 100).toFixed(1) : "0.0";
-            legendHtml += `<div class="flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg hover:bg-slate-50">
-                <div class="flex items-center gap-2 min-w-0"><span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${colors[i]}"></span><span class="text-slate-600 truncate" title="${l}">${l}</span></div>
-                <div class="text-right flex-shrink-0"><span class="font-bold text-slate-800">${fmt(values[i])}</span><span class="text-slate-400"> (${pct}%)</span></div>
-            </div>`;
-        });
-        document.getElementById('kpiModalLegend').innerHTML = legendHtml || `<div class="text-center text-slate-400 py-2">Tidak ada data</div>`;
+    function renderDonutFieldOrStatusInto(data, field, canvasId, centerId, legendId) {
+        if (field === 'status') renderDonutStatusInto(data, canvasId, centerId, legendId);
+        else renderDonutFieldInto(data, field, canvasId, centerId, legendId);
     }
 
     function generateColorPalette(n) {
@@ -2088,7 +2131,94 @@
         }
     });
 
-    window.onload = autoLoad;
+    // ============ MODE TV, MUSIK LATAR, & AUTO-REFRESH ============
+    const AUTO_REFRESH_MS = 5 * 60 * 1000; // refresh data otomatis tiap 5 menit — supaya TV yg dibiarkan
+                                            // menyala terus tetap menampilkan data terkini tanpa perlu disentuh
+    const TV_CYCLE_MS = 18000;             // ganti tampilan (scroll) tiap 18 detik saat Mode TV aktif
+    const TV_CYCLE_TARGETS = ['#tvSectionKpi', '#tvSectionPeringkat', '#tvSectionProses', '#sectionRincian'];
+
+    let tvModeActive = false;
+    let tvCycleInterval = null;
+    let tvCycleIdx = 0;
+    let wakeLockRef = null;
+
+    function startTvCycle() {
+        stopTvCycle();
+        tvCycleIdx = 0;
+        tvCycleInterval = setInterval(() => {
+            tvCycleIdx = (tvCycleIdx + 1) % TV_CYCLE_TARGETS.length;
+            let el = document.querySelector(TV_CYCLE_TARGETS[tvCycleIdx]);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, TV_CYCLE_MS);
+    }
+    function stopTvCycle() {
+        if (tvCycleInterval) { clearInterval(tvCycleInterval); tvCycleInterval = null; }
+    }
+
+    // Mengaktifkan/menonaktifkan Mode TV. HARUS dipanggil dari dalam event klik pengguna (bukan otomatis
+    // saat halaman dimuat) — browser modern MEWAJIBKAN gestur pengguna sebelum mengizinkan layar penuh &
+    // audio berbunyi otomatis, ini kebijakan keamanan resmi, bukan bug di kode ini.
+    async function toggleTvMode() {
+        tvModeActive = !tvModeActive;
+        document.body.classList.toggle('tv-mode', tvModeActive);
+        let btn = document.getElementById('btnTvMode');
+
+        if (tvModeActive) {
+            btn.innerHTML = '<i class="fa-solid fa-compress"></i> Keluar Mode TV';
+            try { await document.documentElement.requestFullscreen(); } catch (e) { /* tdk didukung/ditolak — lanjut tanpa layar penuh */ }
+            try { if ('wakeLock' in navigator) wakeLockRef = await navigator.wakeLock.request('screen'); } catch (e) { /* tdk didukung — layar tetap ikut pengaturan hemat daya perangkat */ }
+            let audio = document.getElementById('bgMusic');
+            audio.volume = 0.4;
+            audio.play().then(() => {
+                document.getElementById('iconMusicToggle').className = 'fa-solid fa-pause text-xs';
+            }).catch(() => { /* diblokir browser — pengguna bisa coba tombol musik manual di pojok kanan bawah */ });
+            startTvCycle();
+        } else {
+            btn.innerHTML = '<i class="fa-solid fa-tv"></i> Mode TV';
+            try { if (document.fullscreenElement) await document.exitFullscreen(); } catch (e) {}
+            if (wakeLockRef) { try { wakeLockRef.release(); } catch (e) {} wakeLockRef = null; }
+            stopTvCycle();
+        }
+    }
+
+    function startTvFromOverlay() {
+        document.getElementById('tvStartOverlay').classList.add('hidden');
+        if (!tvModeActive) toggleTvMode();
+    }
+
+    function toggleMusic() {
+        let audio = document.getElementById('bgMusic');
+        let icon = document.getElementById('iconMusicToggle');
+        if (audio.paused) {
+            audio.play().then(() => { icon.className = 'fa-solid fa-pause text-xs'; })
+                .catch(() => { icon.className = 'fa-solid fa-play text-xs'; });
+        } else {
+            audio.pause();
+            icon.className = 'fa-solid fa-play text-xs';
+        }
+    }
+    function toggleMusicMute() {
+        let audio = document.getElementById('bgMusic');
+        audio.muted = !audio.muted;
+        document.getElementById('iconMusicMute').className = audio.muted ? 'fa-solid fa-volume-xmark text-xs' : 'fa-solid fa-volume-high text-xs';
+    }
+
+    // Kembali ke tampilan normal otomatis kalau layar penuh dikeluarkan lewat Esc/tombol OS (bukan lewat
+    // tombol Mode TV kita) — supaya status tombol & class tv-mode tetap sinkron dgn kondisi layar sebenarnya.
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement && tvModeActive) toggleTvMode();
+    });
+
+    window.onload = () => {
+        autoLoad();
+        setInterval(() => { autoLoad(); }, AUTO_REFRESH_MS);
+        // Buka dgn ?tv=1 di alamat (mis. utk kiosk browser di device TV) -> tampilkan overlay "Mulai Mode TV"
+        // supaya tinggal 1 sentuhan sekali saat setup, setelah itu device bisa ditinggal menyala terus.
+        let params = new URLSearchParams(window.location.search);
+        if (params.get('tv') === '1') {
+            document.getElementById('tvStartOverlay').classList.remove('hidden');
+        }
+    };
 </script>
 </body>
 </html>
