@@ -55,7 +55,16 @@
     .flow-texture {
         background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 2px, transparent 2px, transparent 26px);
     }
-    @media print { .no-print { display: none !important; } body { background: #fff; } }
+    @media print {
+        .no-print { display: none !important; }
+        body { background: #fff; }
+        /* Mode "Grafik": sembunyikan bagian tabel, tampilkan kartu KPI/Seksi/Diagram Donat saja */
+        body.print-mode-grafik #sectionRekapGrid, body.print-mode-grafik #tvSectionPeringkat,
+        body.print-mode-grafik #tvSectionProses, body.print-mode-grafik #sectionRincian { display: none !important; }
+        /* Mode "Tabel": sembunyikan kartu KPI/Seksi/Diagram Donat, tampilkan tabel saja */
+        body.print-mode-tabel #kpiCardsGrid, body.print-mode-tabel #sectionSeksiCards,
+        body.print-mode-tabel #sectionDonut { display: none !important; }
+    }
 
     /* ============ MODE TV ============ */
     body.tv-mode .tv-hide { display: none !important; }
@@ -120,8 +129,8 @@
         </div>
 
         <!-- KPI CARDS (angka dapat diklik utk lihat rincian tabel & diagram) -->
-        <div class="relative grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mt-4">
-            <button type="button" onclick="openKpiModal('total')" class="text-left bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/10 hover:bg-white/20 hover:border-white/30 transition cursor-pointer">
+        <div id="kpiCardsGrid" class="relative grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mt-4">
+            <button type="button" onclick="openKpiCardAndFilter('total')" class="text-left bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/10 hover:bg-white/20 hover:border-white/30 transition cursor-pointer">
                 <span class="text-[10px] text-teal-200 block uppercase tracking-wider">Total Berkas Aktif</span>
                 <span id="kpiTotal" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
             </button>
@@ -130,19 +139,19 @@
                 <span id="kpiBaru" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
                 <span id="kpiBaruKet" class="text-[9px] text-amber-100/80 block mt-0.5">(hari ini: 0 &bull; kemarin: 0)</span>
             </button>
-            <button type="button" onclick="openKpiModal('proses')" class="text-left bg-sky-500/20 backdrop-blur-md p-3 rounded-xl border border-sky-400/20 hover:bg-sky-500/30 hover:border-sky-400/40 transition cursor-pointer">
+            <button type="button" onclick="openKpiCardAndFilter('proses')" class="text-left bg-sky-500/20 backdrop-blur-md p-3 rounded-xl border border-sky-400/20 hover:bg-sky-500/30 hover:border-sky-400/40 transition cursor-pointer">
                 <span class="text-[10px] text-sky-200 block uppercase tracking-wider">Dalam Proses</span>
                 <span id="kpiProses" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
             </button>
-            <button type="button" onclick="openKpiModal('jatuhTempo')" class="text-left bg-coral-500/20 backdrop-blur-md p-3 rounded-xl border border-coral-400/20 hover:bg-coral-500/30 hover:border-coral-400/40 transition cursor-pointer">
+            <button type="button" onclick="openKpiCardAndFilter('jatuhTempo')" class="text-left bg-coral-500/20 backdrop-blur-md p-3 rounded-xl border border-coral-400/20 hover:bg-coral-500/30 hover:border-coral-400/40 transition cursor-pointer">
                 <span class="text-[10px] text-coral-200 block uppercase tracking-wider">Jatuh Tempo</span>
                 <span id="kpiJatuhTempo" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
             </button>
-            <button type="button" onclick="openKpiModal('selesai')" class="text-left bg-emerald-500/20 backdrop-blur-md p-3 rounded-xl border border-emerald-400/20 hover:bg-emerald-500/30 hover:border-emerald-400/40 transition cursor-pointer">
+            <button type="button" onclick="openKpiCardAndFilter('selesai')" class="text-left bg-emerald-500/20 backdrop-blur-md p-3 rounded-xl border border-emerald-400/20 hover:bg-emerald-500/30 hover:border-emerald-400/40 transition cursor-pointer">
                 <span class="text-[10px] text-emerald-200 block uppercase tracking-wider">Selesai (Diserahkan)</span>
                 <span id="kpiSelesai" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
             </button>
-            <button type="button" onclick="openDitutupKpiCard()" class="text-left bg-slate-400/20 backdrop-blur-md p-3 rounded-xl border border-slate-300/20 hover:bg-slate-400/30 hover:border-slate-300/40 transition cursor-pointer">
+            <button type="button" onclick="openKpiCardAndFilter('ditutup')" class="text-left bg-slate-400/20 backdrop-blur-md p-3 rounded-xl border border-slate-300/20 hover:bg-slate-400/30 hover:border-slate-300/40 transition cursor-pointer">
                 <span class="text-[10px] text-slate-200 block uppercase tracking-wider">Ditutup</span>
                 <span id="kpiDitutup" class="text-lg md:text-xl font-bold text-white skeleton">0</span>
                 <span id="kpiDitutupPnbp" class="text-[9px] text-slate-100/80 block mt-0.5 whitespace-nowrap">PNBP: Rp 0</span>
@@ -204,7 +213,7 @@
 
     <!-- RINGKASAN PER SEKSI — kata kunci Nama Kegiatan sama persis dgn yang dipakai reminder WA ke
          Kepala Seksi, supaya angka di sini selalu konsisten dgn apa yg dikirim lewat WA. -->
-    <section class="tv-hide bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <section id="sectionSeksiCards" class="tv-hide bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="bg-gradient-to-r from-teal-800 to-teal-700 text-white px-5 py-3">
             <h2 class="font-display text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                 <i class="fa-solid fa-sitemap text-teal-200"></i> Ringkasan per Seksi
@@ -214,7 +223,7 @@
     </section>
 
     <!-- REKAP: POSISI TERAKHIR & PELAYANAN TERBANYAK -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div id="sectionRekapGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
             <div class="bg-teal-800 text-white px-5 py-3 flex justify-between items-center">
                 <h2 class="font-display text-xs font-bold uppercase tracking-wider flex items-center gap-2">
@@ -352,7 +361,7 @@
             </div>
         </section>
 
-        <section class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
+        <section id="sectionDonut" class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
             <h2 class="font-display text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 text-center flex items-center gap-2">
                 <i class="fa-solid fa-chart-pie text-teal-600"></i> Diagram Donat
             </h2>
@@ -442,6 +451,31 @@
     <button onclick="startTvFromOverlay()" class="bg-coral-500 hover:bg-coral-400 text-white font-bold px-6 py-3 rounded-xl shadow-lg text-sm flex items-center gap-2">
         <i class="fa-solid fa-play"></i> Mulai Mode TV
     </button>
+</div>
+
+<!-- ============ MODAL: PILIH FORMAT CETAK ============ -->
+<div id="printFormatModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print" onclick="if(event.target===this) closePrintFormatModal()">
+    <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+        <h3 class="font-display text-sm font-bold text-slate-700 mb-1 flex items-center gap-2">
+            <i class="fa-solid fa-print text-teal-600"></i> Pilih Format Cetak
+        </h3>
+        <p class="text-[11px] text-slate-500 mb-4">Kertas A4. Orientasi menyesuaikan otomatis sesuai pilihan.</p>
+        <div class="space-y-2">
+            <button type="button" onclick="doPrint('tabel')" class="w-full text-left border border-slate-200 hover:border-teal-400 hover:bg-teal-50 rounded-lg p-3 transition">
+                <div class="font-bold text-xs text-slate-700 flex items-center gap-2"><i class="fa-solid fa-table text-teal-600"></i> Tabel</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">Rekapitulasi Posisi, Pelayanan Terbanyak, Peringkat Jatuh Tempo, Dalam Proses, Rincian Data Berkas — Landscape</div>
+            </button>
+            <button type="button" onclick="doPrint('grafik')" class="w-full text-left border border-slate-200 hover:border-teal-400 hover:bg-teal-50 rounded-lg p-3 transition">
+                <div class="font-bold text-xs text-slate-700 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-teal-600"></i> Grafik</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">Kartu KPI, Ringkasan per Seksi, Diagram Donat — Portrait</div>
+            </button>
+            <button type="button" onclick="doPrint('both')" class="w-full text-left border border-slate-200 hover:border-teal-400 hover:bg-teal-50 rounded-lg p-3 transition">
+                <div class="font-bold text-xs text-slate-700 flex items-center gap-2"><i class="fa-solid fa-layer-group text-teal-600"></i> Tabel dan Grafik</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">Seluruh data lengkap — Landscape</div>
+            </button>
+        </div>
+        <button type="button" onclick="closePrintFormatModal()" class="mt-4 text-[11px] text-slate-400 hover:text-slate-600">Batal</button>
+    </div>
 </div>
 
 <!-- ============ MODAL: RINCIAN KPI (tabel + diagram) ============ -->
@@ -862,6 +896,8 @@
     let activeStatus = null;   // null | 'Proses' | 'JatuhTempo' | 'Selesai'
     let activePosisi = null;
     let activeKegiatan = null;
+    let activeSeksi = null;     // nama Kepala Seksi yang sedang difilter (dari kartu Seksi), atau null
+    let activeSeksiSub = null;  // 'jt' | 'akan' | 'proses' | null (null = seluruh aktif utk Seksi tsb)
     let detailPage = 1;
     const PAGE_SIZE = 50;
     let donutChartInstances = {};  // map canvasId -> Chart instance (mendukung mode tunggal & ganda sekaligus, dipakai panel utama & modal KPI)
@@ -1182,7 +1218,21 @@
             }
             if (activePosisi && d.posisiTerakhir !== activePosisi) return false;
             if (activeKegiatan && d.namaKegiatan !== activeKegiatan) return false;
-            if (activeStatus && d.status !== activeStatus) return false;
+            // "AKTIF" adalah penanda khusus (bukan status sungguhan) dipakai kartu "Total Berkas Aktif" —
+            // artinya SEMUA KECUALI Ditutup (bukan satu status tunggal spt Proses/JatuhTempo/dst).
+            if (activeStatus === "AKTIF") { if (d.status === "Ditutup") return false; }
+            else if (activeStatus && d.status !== activeStatus) return false;
+            if (activeSeksi) {
+                if (d.status !== "Proses" && d.status !== "JatuhTempo") return false;
+                if (!cariSeksiUntukKegiatan(d.namaKegiatan, d.posisiTerakhir).some(s => s.nama === activeSeksi)) return false;
+                if (activeSeksiSub === 'jt' && d.status !== "JatuhTempo") return false;
+                if (activeSeksiSub === 'proses' && d.status !== "Proses") return false;
+                if (activeSeksiSub === 'akan') {
+                    if (d.status !== "Proses" || !d.jatuhTempo || !worldNow) return false;
+                    let sisa = Math.round((d.jatuhTempo.getTime() - worldNow.getTime()) / 86400000);
+                    if (!(sisa >= 0 && sisa <= 3)) return false;
+                }
+            }
             return true;
         });
     }
@@ -1208,7 +1258,7 @@
         let yr = document.getElementById('filterTahun').value;
         let keg = document.getElementById('filterKegiatan').value;
         let qRaw = document.getElementById('searchInput').value.trim();
-        let isTampilSemua = (yr === "ALL" && keg === "ALL" && !qRaw && !activePosisi && !activeKegiatan && !activeStatus);
+        let isTampilSemua = (yr === "ALL" && keg === "ALL" && !qRaw && !activePosisi && !activeKegiatan && !activeStatus && !activeSeksi);
         let detailData = (activeStatus === "Ditutup" || isTampilSemua) ? data : data.filter(d => d.status !== "Ditutup");
 
         renderDetailTable(detailData);
@@ -1542,15 +1592,15 @@
                     <div class="text-[10px] font-bold text-teal-700 uppercase tracking-wider">${seksi.label}</div>
                     <div class="text-[11px] text-slate-500 mb-3 leading-snug">${seksi.subLabel}</div>
                     <div class="grid grid-cols-2 gap-2">
-                        <button type="button" onclick="openKpiModal('seksi${idx + 1}_jt')" class="text-left bg-coral-50 hover:bg-coral-100 transition rounded-lg p-2 cursor-pointer">
+                        <button type="button" onclick="openSeksiCardAndFilter(${idx + 1}, 'jt')" class="text-left bg-coral-50 hover:bg-coral-100 transition rounded-lg p-2 cursor-pointer">
                             <div class="text-[9px] text-coral-600 uppercase font-bold">Jatuh Tempo</div>
                             <div class="text-lg font-extrabold text-coral-700">${fmt(jatuhTempo)}</div>
                         </button>
-                        <button type="button" onclick="openKpiModal('seksi${idx + 1}_akan')" class="text-left bg-amber-50 hover:bg-amber-100 transition rounded-lg p-2 cursor-pointer">
+                        <button type="button" onclick="openSeksiCardAndFilter(${idx + 1}, 'akan')" class="text-left bg-amber-50 hover:bg-amber-100 transition rounded-lg p-2 cursor-pointer">
                             <div class="text-[9px] text-amber-600 uppercase font-bold">Akan JT (\u22643 hr)</div>
                             <div class="text-lg font-extrabold text-amber-700">${fmt(akanJatuhTempo)}</div>
                         </button>
-                        <button type="button" onclick="openKpiModal('seksi${idx + 1}_proses')" class="text-left bg-sky-50 hover:bg-sky-100 transition rounded-lg p-2 cursor-pointer">
+                        <button type="button" onclick="openSeksiCardAndFilter(${idx + 1}, 'proses')" class="text-left bg-sky-50 hover:bg-sky-100 transition rounded-lg p-2 cursor-pointer">
                             <div class="text-[9px] text-sky-600 uppercase font-bold">Dalam Proses</div>
                             <div class="text-lg font-extrabold text-sky-700">${fmt(dalamProses)}</div>
                         </button>
@@ -1573,6 +1623,7 @@
             activeStatus = "JatuhTempo";
             activeKegiatan = null;
         }
+        activeSeksi = null; activeSeksiSub = null;
         renderAll();
         let el = document.getElementById('sectionRincian');
         if (el && activeStatus) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2015,12 +2066,38 @@
     // Khusus kartu KPI "Ditutup": SELAIN membuka modal rincian (spt kartu KPI lain), juga langsung
     // memfilter tabel "Rincian Data Berkas" di halaman utama ke status Ditutup & scroll ke situ — supaya
     // begitu modal ditutup, tabel utama sudah menampilkan Ditutup (bukan cuma di dalam modal saja).
-    function openDitutupKpiCard() {
-        activeStatus = "Ditutup";
+    // Klik kartu KPI (Total/Proses/Jatuh Tempo/Selesai/Ditutup) — SELAIN membuka modal rincian, JUGA
+    // langsung memfilter SELURUH panel dashboard (Rekapitulasi Posisi, Pelayanan Terbanyak, Peringkat
+    // Jatuh Tempo, Dalam Proses, Rincian Data Berkas, Donat) ke kondisi yang sama — supaya begitu modal
+    // ditutup, seluruh halaman sudah konsisten menampilkan data yang sama dgn yg baru diklik.
+    // "Berkas Baru" TIDAK memakai ini (tetap modal-saja) krn sifatnya berdasar tanggal daftar, bukan
+    // status, sehingga tidak ada cara alami memfilter tabel2 lain dgn dimensi itu.
+    function openKpiCardAndFilter(kind) {
         activePosisi = null;
         activeKegiatan = null;
+        activeSeksi = null;
+        activeSeksiSub = null;
+        if (kind === 'total') activeStatus = "AKTIF";
+        else if (kind === 'proses') activeStatus = "Proses";
+        else if (kind === 'jatuhTempo') activeStatus = "JatuhTempo";
+        else if (kind === 'selesai') activeStatus = "Selesai";
+        else if (kind === 'ditutup') activeStatus = "Ditutup";
         renderAll();
-        openKpiModal('ditutup');
+        openKpiModal(kind);
+        let el = document.getElementById('sectionRincian');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Klik salah satu angka (Jatuh Tempo/Akan JT/Dalam Proses) di kartu Seksi — sama spt di atas: buka
+    // modal DAN memfilter seluruh panel dashboard ke Seksi + kategori yg diklik.
+    function openSeksiCardAndFilter(seksiIdx, sub) {
+        activePosisi = null;
+        activeKegiatan = null;
+        activeStatus = null;
+        activeSeksi = SEKSI_KEYWORDS[seksiIdx - 1] ? SEKSI_KEYWORDS[seksiIdx - 1].nama : null;
+        activeSeksiSub = sub;
+        renderAll();
+        openKpiModal('seksi' + seksiIdx + (sub ? '_' + sub : ''));
         let el = document.getElementById('sectionRincian');
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -2232,13 +2309,13 @@
         document.getElementById('filterTahun').value = "ALL";
         document.getElementById('filterKegiatan').value = "ALL";
         document.getElementById('searchInput').value = "";
-        activePosisi = null; activeKegiatan = null; activeStatus = null;
+        activePosisi = null; activeKegiatan = null; activeStatus = null; activeSeksi = null; activeSeksiSub = null;
         renderAll();
     });
     document.getElementById('btnPagePrev').addEventListener('click', () => { detailPage--; renderDetailPage(); });
     document.getElementById('btnPageNext').addEventListener('click', () => { detailPage++; renderDetailPage(); });
     document.getElementById('btnRefreshData').addEventListener('click', () => { autoLoad(); });
-    document.getElementById('btnPrintPdf').addEventListener('click', () => window.print());
+    document.getElementById('btnPrintPdf').addEventListener('click', () => openPrintFormatModal());
     document.getElementById('btnExportExcel').addEventListener('click', () => {
         try {
             let rows = currentDetailData.map((d, i) => ({
@@ -2332,6 +2409,36 @@
     // tombol Mode TV kita) — supaya status tombol & class tv-mode tetap sinkron dgn kondisi layar sebenarnya.
     document.addEventListener('fullscreenchange', () => {
         if (!document.fullscreenElement && tvModeActive) toggleTvMode();
+    });
+
+    // ============ CETAK: PILIH FORMAT (Tabel / Grafik / Tabel dan Grafik) ============
+    function openPrintFormatModal() { document.getElementById('printFormatModal').classList.remove('hidden'); }
+    function closePrintFormatModal() { document.getElementById('printFormatModal').classList.add('hidden'); }
+
+    // mode: 'tabel' | 'grafik' | 'both'. Menambah class ke <body> supaya CSS @media print tahu bagian mana
+    // yang disembunyikan, sekaligus menyisipkan aturan @page (ukuran A4 + orientasi) yg beda per mode
+    // (Tabel & Keduanya -> landscape krn tabelnya lebar; Grafik -> portrait krn lebih ringkas).
+    function doPrint(mode) {
+        closePrintFormatModal();
+        document.body.classList.remove('print-mode-tabel', 'print-mode-grafik', 'print-mode-both');
+        document.body.classList.add('print-mode-' + mode);
+
+        let orientasi = (mode === 'grafik') ? 'portrait' : 'landscape';
+        let styleEl = document.getElementById('dynamicPrintPage');
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'dynamicPrintPage';
+            document.head.appendChild(styleEl);
+        }
+        styleEl.innerHTML = `@page { size: A4 ${orientasi}; margin: 10mm; }`;
+
+        setTimeout(() => window.print(), 50); // beri waktu browser terapkan class sebelum dialog cetak muncul
+    }
+
+    window.addEventListener('afterprint', () => {
+        document.body.classList.remove('print-mode-tabel', 'print-mode-grafik', 'print-mode-both');
+        let styleEl = document.getElementById('dynamicPrintPage');
+        if (styleEl) styleEl.remove();
     });
 
     window.onload = () => {
