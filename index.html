@@ -202,6 +202,17 @@
         </div>
     </section>
 
+    <!-- RINGKASAN PER SEKSI — kata kunci Nama Kegiatan sama persis dgn yang dipakai reminder WA ke
+         Kepala Seksi, supaya angka di sini selalu konsisten dgn apa yg dikirim lewat WA. -->
+    <section class="tv-hide bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-gradient-to-r from-teal-800 to-teal-700 text-white px-5 py-3">
+            <h2 class="font-display text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-sitemap text-teal-200"></i> Ringkasan per Seksi
+            </h2>
+        </div>
+        <div id="seksiCardsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5"></div>
+    </section>
+
     <!-- REKAP: POSISI TERAKHIR & PELAYANAN TERBANYAK -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
@@ -983,6 +994,24 @@
     // konsisten, dan perbandingan ketat (===) akan gagal mengenalinya kalau hurufnya beda.
     function normTeks(s) { return (s || "").trim().toLowerCase().replace(/\s+/g, " "); }
     function samaTeks(a, b) { return normTeks(a) === normTeks(b); }
+
+    // Pengelompokan Nama Kegiatan -> Kepala Seksi, SAMA PERSIS dgn kata kunci di renaksi-webapp.gs
+    // (dipakai utk reminder WA ke Kepala Seksi) — supaya angka di dashboard selalu konsisten dgn WA.
+    const SEKSI_KEYWORDS = [
+        { nama: "Kepala Seksi Survei dan Pemetaan", label: "Seksi 1", subLabel: "Survei dan Pemetaan",
+          kataKunci: ["pengukuran", "pemetaan", "penataan", "pemisahan", "pemecahan", "penggabungan", "surat ukur"] },
+        { nama: "Kepala Seksi Penetapan Hak dan Pendaftaran", label: "Seksi 2", subLabel: "Penetapan Hak dan Pendaftaran",
+          kataKunci: ["pendaftaran tanah", "permohonan sk", "sertipikat pengganti", "pemisahan", "pemecahan", "penggabungan", "buku tanah"] },
+        { nama: "Kepala Seksi Penataan dan Pemberdayaan", label: "Seksi 3", subLabel: "Penataan Pertanahan",
+          kataKunci: ["ptp"] },
+        { nama: "Kepala Seksi Pengadaan Tanah dan Pengembangan", label: "Seksi 4", subLabel: "Pengadaan Tanah dan Pengembangan",
+          kataKunci: ["zona"] }
+    ];
+    // Mengembalikan ARRAY seksi yg cocok (bisa >1 kalau kata kuncinya tumpang tindih antar-seksi, mis. "Pemisahan").
+    function cariSeksiUntukKegiatan(namaKegiatan) {
+        let teks = normTeks(namaKegiatan);
+        return SEKSI_KEYWORDS.filter(s => s.kataKunci.some(k => teks.indexOf(normTeks(k)) !== -1));
+    }
     // Menentukan status Proses/JatuhTempo murni dari tanggal jatuh tempo (dipakai di beberapa cabang logika
     // status supaya tidak duplikat kode).
     function statusDariTanggal(jatuhTempo) {
@@ -1146,6 +1175,7 @@
         renderArahan(data);
         renderProsesJatuhTempoTable(data);
         renderRenaksiFooterStatus(data);
+        renderSeksiCards(data);
 
         // Rincian Data Berkas & Diagram Donat: berkas Ditutup HANYA ikut ditampilkan saat (a) kondisi
         // "Tampil Semua" murni (tidak ada filter/pencarian/klik apa pun aktif), atau (b) activeStatus
@@ -1462,6 +1492,54 @@
         }
     }
 
+    // Ringkasan per Seksi: 4 kartu (Jatuh Tempo, Akan Jatuh Tempo <=3 hari, Dalam Proses, Total PNBP),
+    // dihitung dari berkas AKTIF (Proses/JatuhTempo — Ditutup & Selesai dikecualikan krn sudah tuntas)
+    // yang Nama Kegiatan-nya cocok kata kunci Seksi tsb. Satu berkas bisa masuk ke >1 kartu Seksi kalau
+    // kata kuncinya tumpang tindih (mis. "Pemisahan" -> Seksi 1 & Seksi 2 sekaligus) — SAMA seperti
+    // logika pengiriman WA ke Kepala Seksi, supaya angkanya selalu konsisten.
+    function renderSeksiCards(data) {
+        let cont = document.getElementById('seksiCardsContainer');
+        if (!cont) return;
+        let aktif = data.filter(d => d.status === "Proses" || d.status === "JatuhTempo");
+
+        let html = "";
+        SEKSI_KEYWORDS.forEach(seksi => {
+            let milikSeksi = aktif.filter(d => cariSeksiUntukKegiatan(d.namaKegiatan).some(s => s.nama === seksi.nama));
+            let jatuhTempo = milikSeksi.filter(d => d.status === "JatuhTempo").length;
+            let akanJatuhTempo = milikSeksi.filter(d => {
+                if (d.status !== "Proses" || !d.jatuhTempo || !worldNow) return false;
+                let sisa = Math.round((d.jatuhTempo.getTime() - worldNow.getTime()) / 86400000);
+                return sisa >= 0 && sisa <= 3;
+            }).length;
+            let dalamProses = milikSeksi.filter(d => d.status === "Proses").length;
+            let totalPnbp = milikSeksi.reduce((s, d) => s + d.totalPnbp, 0);
+
+            html += `
+                <div class="border border-slate-200 rounded-xl p-4 hover:border-teal-300 hover:shadow-sm transition">
+                    <div class="text-[10px] font-bold text-teal-700 uppercase tracking-wider">${seksi.label}</div>
+                    <div class="text-[11px] text-slate-500 mb-3 leading-snug">${seksi.subLabel}</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-coral-50 rounded-lg p-2">
+                            <div class="text-[9px] text-coral-600 uppercase font-bold">Jatuh Tempo</div>
+                            <div class="text-lg font-extrabold text-coral-700">${fmt(jatuhTempo)}</div>
+                        </div>
+                        <div class="bg-amber-50 rounded-lg p-2">
+                            <div class="text-[9px] text-amber-600 uppercase font-bold">Akan JT (\u22643 hr)</div>
+                            <div class="text-lg font-extrabold text-amber-700">${fmt(akanJatuhTempo)}</div>
+                        </div>
+                        <div class="bg-sky-50 rounded-lg p-2">
+                            <div class="text-[9px] text-sky-600 uppercase font-bold">Dalam Proses</div>
+                            <div class="text-lg font-extrabold text-sky-700">${fmt(dalamProses)}</div>
+                        </div>
+                        <div class="bg-emerald-50 rounded-lg p-2">
+                            <div class="text-[9px] text-emerald-600 uppercase font-bold">Total PNBP</div>
+                            <div class="text-[13px] font-extrabold text-emerald-700 whitespace-nowrap">${formatRupiahNbsp(totalPnbp)}</div>
+                        </div>
+                    </div>
+                </div>`;
+        });
+        cont.innerHTML = html;
+    }
     // Klik baris peringkat: filter Rincian Data Berkas & Diagram Donat ke posisi tsb KHUSUS status Jatuh Tempo
     function selectRanking(posisi) {
         if (activePosisi === posisi && activeStatus === "JatuhTempo") {
