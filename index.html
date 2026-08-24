@@ -1538,28 +1538,28 @@
             let totalPnbp = milikSeksi.reduce((s, d) => s + d.totalPnbp, 0);
 
             html += `
-                <button type="button" onclick="openKpiModal('seksi${idx + 1}')" class="text-left border border-slate-200 rounded-xl p-4 hover:border-teal-300 hover:shadow-sm transition cursor-pointer">
+                <div class="text-left border border-slate-200 rounded-xl p-4 hover:border-teal-300 hover:shadow-sm transition">
                     <div class="text-[10px] font-bold text-teal-700 uppercase tracking-wider">${seksi.label}</div>
                     <div class="text-[11px] text-slate-500 mb-3 leading-snug">${seksi.subLabel}</div>
                     <div class="grid grid-cols-2 gap-2">
-                        <div class="bg-coral-50 rounded-lg p-2">
+                        <button type="button" onclick="openKpiModal('seksi${idx + 1}_jt')" class="text-left bg-coral-50 hover:bg-coral-100 transition rounded-lg p-2 cursor-pointer">
                             <div class="text-[9px] text-coral-600 uppercase font-bold">Jatuh Tempo</div>
                             <div class="text-lg font-extrabold text-coral-700">${fmt(jatuhTempo)}</div>
-                        </div>
-                        <div class="bg-amber-50 rounded-lg p-2">
+                        </button>
+                        <button type="button" onclick="openKpiModal('seksi${idx + 1}_akan')" class="text-left bg-amber-50 hover:bg-amber-100 transition rounded-lg p-2 cursor-pointer">
                             <div class="text-[9px] text-amber-600 uppercase font-bold">Akan JT (\u22643 hr)</div>
                             <div class="text-lg font-extrabold text-amber-700">${fmt(akanJatuhTempo)}</div>
-                        </div>
-                        <div class="bg-sky-50 rounded-lg p-2">
+                        </button>
+                        <button type="button" onclick="openKpiModal('seksi${idx + 1}_proses')" class="text-left bg-sky-50 hover:bg-sky-100 transition rounded-lg p-2 cursor-pointer">
                             <div class="text-[9px] text-sky-600 uppercase font-bold">Dalam Proses</div>
                             <div class="text-lg font-extrabold text-sky-700">${fmt(dalamProses)}</div>
-                        </div>
+                        </button>
                         <div class="bg-emerald-50 rounded-lg p-2">
                             <div class="text-[9px] text-emerald-600 uppercase font-bold">Total PNBP</div>
                             <div class="text-[13px] font-extrabold text-emerald-700 whitespace-nowrap">${formatRupiahNbsp(totalPnbp)}</div>
                         </div>
                     </div>
-                </button>`;
+                </div>`;
         });
         cont.innerHTML = html;
     }
@@ -1983,10 +1983,26 @@
             return { title: 'Berkas Baru (Hari Ini & Kemarin)', data: b.all, baru: b };
         }
         if (kind && kind.indexOf('seksi') === 0) {
-            let seksiObj = SEKSI_KEYWORDS[parseInt(kind.replace('seksi', ''), 10) - 1];
+            let m = kind.match(/^seksi(\d)(?:_(jt|akan|proses))?$/);
+            let seksiObj = m ? SEKSI_KEYWORDS[parseInt(m[1], 10) - 1] : null;
             if (seksiObj) {
                 let aktifBase = base.filter(d => d.status === "Proses" || d.status === "JatuhTempo");
                 let matched = aktifBase.filter(d => cariSeksiUntukKegiatan(d.namaKegiatan, d.posisiTerakhir).some(s => s.nama === seksiObj.nama));
+                let sub = m[2];
+                if (sub === 'jt') {
+                    return { title: seksiObj.label + ' — Jatuh Tempo', data: matched.filter(d => d.status === "JatuhTempo") };
+                }
+                if (sub === 'akan') {
+                    let akan = matched.filter(d => {
+                        if (d.status !== "Proses" || !d.jatuhTempo || !worldNow) return false;
+                        let sisa = Math.round((d.jatuhTempo.getTime() - worldNow.getTime()) / 86400000);
+                        return sisa >= 0 && sisa <= 3;
+                    });
+                    return { title: seksiObj.label + ' — Akan Jatuh Tempo (\u22643 hari)', data: akan };
+                }
+                if (sub === 'proses') {
+                    return { title: seksiObj.label + ' — Dalam Proses', data: matched.filter(d => d.status === "Proses") };
+                }
                 return { title: seksiObj.label + ' — ' + seksiObj.subLabel, data: matched };
             }
         }
