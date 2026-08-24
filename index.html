@@ -999,17 +999,40 @@
     // (dipakai utk reminder WA ke Kepala Seksi) — supaya angka di dashboard selalu konsisten dgn WA.
     const SEKSI_KEYWORDS = [
         { nama: "Kepala Seksi Survei dan Pemetaan", label: "Seksi 1", subLabel: "Survei dan Pemetaan",
-          kataKunci: ["pengukuran", "pemetaan", "penataan", "pemisahan", "pemecahan", "penggabungan", "surat ukur"] },
+          kataKunci: ["pengukuran", "pemetaan", "penataan", "surat ukur"] },
         { nama: "Kepala Seksi Penetapan Hak dan Pendaftaran", label: "Seksi 2", subLabel: "Penetapan Hak dan Pendaftaran",
-          kataKunci: ["pendaftaran tanah", "permohonan sk", "sertipikat pengganti", "pemisahan", "pemecahan", "penggabungan", "buku tanah"] },
+          kataKunci: ["pendaftaran tanah", "permohonan sk", "sertipikat pengganti",
+                      "buku tanah", "perubahan", "peralihan", "roya", "pendaftaran sk"] },
         { nama: "Kepala Seksi Penataan dan Pemberdayaan", label: "Seksi 3", subLabel: "Penataan Pertanahan",
           kataKunci: ["ptp"] },
         { nama: "Kepala Seksi Pengadaan Tanah dan Pengembangan", label: "Seksi 4", subLabel: "Pengadaan Tanah dan Pengembangan",
           kataKunci: ["zona"] }
     ];
-    // Mengembalikan ARRAY seksi yg cocok (bisa >1 kalau kata kuncinya tumpang tindih antar-seksi, mis. "Pemisahan").
-    function cariSeksiUntukKegiatan(namaKegiatan) {
+    // Kata kunci Nama Kegiatan yang Seksi-nya TIDAK dipatok tetap, tapi ditentukan dari Posisi Terakhir
+    // berkas saat ini — supaya HANYA dikirim ke SATU Kepala Seksi yang relevan (bawahannya), bukan dua-duanya
+    // sekaligus. Kalau Posisi Terakhir sudah "Kepala Kantor Pertanahan", TIDAK masuk Seksi manapun (sudah
+    // cukup terlihat di Rekapitulasi & panel di bawahnya).
+    const POSISI_DEPENDEN_KATA = ["hapusnya", "pemisahan", "pemecahan", "penggabungan"];
+    const POSISI_DEPENDEN_SEKSI1_KATA = ["pengukuran", "pemetaan", "ukur"];
+    const POSISI_DEPENDEN_SEKSI2_KATA = ["pendaftaran", "hak tanah", "buku tanah", "pemeliharaan"];
+
+    // Mengembalikan ARRAY seksi yg cocok. posisiTerakhir WAJIB disertakan krn kegiatan di POSISI_DEPENDEN_KATA
+    // butuh itu utk menentukan Seksi-nya (hanya SATU Seksi, bukan tumpang tindih).
+    function cariSeksiUntukKegiatan(namaKegiatan, posisiTerakhir) {
         let teks = normTeks(namaKegiatan);
+
+        if (POSISI_DEPENDEN_KATA.some(k => teks.indexOf(k) !== -1)) {
+            if (samaTeks(posisiTerakhir, "Kepala Kantor Pertanahan")) return [];
+            let posisiTeks = normTeks(posisiTerakhir);
+            if (POSISI_DEPENDEN_SEKSI1_KATA.some(k => posisiTeks.indexOf(k) !== -1)) {
+                return SEKSI_KEYWORDS.filter(s => s.nama === "Kepala Seksi Survei dan Pemetaan");
+            }
+            if (POSISI_DEPENDEN_SEKSI2_KATA.some(k => posisiTeks.indexOf(k) !== -1)) {
+                return SEKSI_KEYWORDS.filter(s => s.nama === "Kepala Seksi Penetapan Hak dan Pendaftaran");
+            }
+            return [];
+        }
+
         return SEKSI_KEYWORDS.filter(s => s.kataKunci.some(k => teks.indexOf(normTeks(k)) !== -1));
     }
     // Menentukan status Proses/JatuhTempo murni dari tanggal jatuh tempo (dipakai di beberapa cabang logika
@@ -1503,8 +1526,8 @@
         let aktif = data.filter(d => d.status === "Proses" || d.status === "JatuhTempo");
 
         let html = "";
-        SEKSI_KEYWORDS.forEach(seksi => {
-            let milikSeksi = aktif.filter(d => cariSeksiUntukKegiatan(d.namaKegiatan).some(s => s.nama === seksi.nama));
+        SEKSI_KEYWORDS.forEach((seksi, idx) => {
+            let milikSeksi = aktif.filter(d => cariSeksiUntukKegiatan(d.namaKegiatan, d.posisiTerakhir).some(s => s.nama === seksi.nama));
             let jatuhTempo = milikSeksi.filter(d => d.status === "JatuhTempo").length;
             let akanJatuhTempo = milikSeksi.filter(d => {
                 if (d.status !== "Proses" || !d.jatuhTempo || !worldNow) return false;
@@ -1515,7 +1538,7 @@
             let totalPnbp = milikSeksi.reduce((s, d) => s + d.totalPnbp, 0);
 
             html += `
-                <div class="border border-slate-200 rounded-xl p-4 hover:border-teal-300 hover:shadow-sm transition">
+                <button type="button" onclick="openKpiModal('seksi${idx + 1}')" class="text-left border border-slate-200 rounded-xl p-4 hover:border-teal-300 hover:shadow-sm transition cursor-pointer">
                     <div class="text-[10px] font-bold text-teal-700 uppercase tracking-wider">${seksi.label}</div>
                     <div class="text-[11px] text-slate-500 mb-3 leading-snug">${seksi.subLabel}</div>
                     <div class="grid grid-cols-2 gap-2">
@@ -1536,7 +1559,7 @@
                             <div class="text-[13px] font-extrabold text-emerald-700 whitespace-nowrap">${formatRupiahNbsp(totalPnbp)}</div>
                         </div>
                     </div>
-                </div>`;
+                </button>`;
         });
         cont.innerHTML = html;
     }
@@ -1958,6 +1981,14 @@
         if (kind === 'baru') {
             let b = getBerkasBaru(base);
             return { title: 'Berkas Baru (Hari Ini & Kemarin)', data: b.all, baru: b };
+        }
+        if (kind && kind.indexOf('seksi') === 0) {
+            let seksiObj = SEKSI_KEYWORDS[parseInt(kind.replace('seksi', ''), 10) - 1];
+            if (seksiObj) {
+                let aktifBase = base.filter(d => d.status === "Proses" || d.status === "JatuhTempo");
+                let matched = aktifBase.filter(d => cariSeksiUntukKegiatan(d.namaKegiatan, d.posisiTerakhir).some(s => s.nama === seksiObj.nama));
+                return { title: seksiObj.label + ' — ' + seksiObj.subLabel, data: matched };
+            }
         }
         return { title: '', data: [] };
     }
