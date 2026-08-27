@@ -1049,7 +1049,10 @@
     // cukup terlihat di Rekapitulasi & panel di bawahnya).
     const POSISI_DEPENDEN_KATA = ["hapusnya", "pemisahan", "pemecahan", "penggabungan", "pendaftaran tanah", "permohonan sk"];
     const POSISI_DEPENDEN_SEKSI1_KATA = ["pengukuran", "pemetaan", "ukur"];
-    const POSISI_DEPENDEN_SEKSI2_KATA = ["pendaftaran", "hak tanah", "buku tanah", "pemeliharaan"];
+    const POSISI_DEPENDEN_SEKSI2_KATA = ["pendaftaran", "hak tanah", "buku tanah", "pemeliharaan", "panitia", "pengumuman"];
+
+    // Nama Kegiatan yg dikecualikan dari default Kasi 2 saat Posisi Terakhir = Kepala Kantor.
+    const KEPALA_KANTOR_KECUALI_KATA = ["nilai", "pkkpr", "kkpr", "penataan"];
 
     // Mengembalikan ARRAY seksi yg cocok. posisiTerakhir WAJIB disertakan krn kegiatan di POSISI_DEPENDEN_KATA
     // butuh itu utk menentukan Seksi-nya (hanya SATU Seksi, bukan tumpang tindih).
@@ -1057,15 +1060,21 @@
         let teks = normTeks(namaKegiatan);
 
         if (POSISI_DEPENDEN_KATA.some(k => teks.indexOf(k) !== -1)) {
-            if (samaTeks(posisiTerakhir, "Kepala Kantor Pertanahan")) return [];
-            let posisiTeks = normTeks(posisiTerakhir);
-            if (POSISI_DEPENDEN_SEKSI1_KATA.some(k => posisiTeks.indexOf(k) !== -1)) {
-                return SEKSI_KEYWORDS.filter(s => s.nama === "Kepala Seksi Survei dan Pemetaan");
+            if (samaTeks(posisiTerakhir, "Kepala Kantor Pertanahan")) {
+                if (!KEPALA_KANTOR_KECUALI_KATA.some(k => teks.indexOf(k) !== -1)) {
+                    return SEKSI_KEYWORDS.filter(s => s.nama === "Kepala Seksi Penetapan Hak dan Pendaftaran");
+                }
+                // kena pengecualian -> lanjut ke pencocokan normal di bawah
+            } else {
+                let posisiTeks = normTeks(posisiTerakhir);
+                if (POSISI_DEPENDEN_SEKSI1_KATA.some(k => posisiTeks.indexOf(k) !== -1)) {
+                    return SEKSI_KEYWORDS.filter(s => s.nama === "Kepala Seksi Survei dan Pemetaan");
+                }
+                if (POSISI_DEPENDEN_SEKSI2_KATA.some(k => posisiTeks.indexOf(k) !== -1)) {
+                    return SEKSI_KEYWORDS.filter(s => s.nama === "Kepala Seksi Penetapan Hak dan Pendaftaran");
+                }
+                return [];
             }
-            if (POSISI_DEPENDEN_SEKSI2_KATA.some(k => posisiTeks.indexOf(k) !== -1)) {
-                return SEKSI_KEYWORDS.filter(s => s.nama === "Kepala Seksi Penetapan Hak dan Pendaftaran");
-            }
-            return [];
         }
 
         return SEKSI_KEYWORDS.filter(s => s.kataKunci.some(k => teks.indexOf(normTeks(k)) !== -1));
