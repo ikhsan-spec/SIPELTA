@@ -1028,7 +1028,12 @@
     // Normalisasi teks utk perbandingan yang TIDAK sensitif huruf besar/kecil maupun spasi berlebih —
     // perlu karena data sumber (Google Sheet) kadang menulis "ditutup"/"DITUTUP"/" Ditutup " secara tidak
     // konsisten, dan perbandingan ketat (===) akan gagal mengenalinya kalau hurufnya beda.
-    function normTeks(s) { return (s || "").trim().toLowerCase().replace(/\s+/g, " "); }
+    // Normalisasi teks (case/spasi-insensitive) + perbaikan typo umum "Pemetan"->"Pemetaan" (sama dgn .gs).
+    function normTeks(s) {
+        let t = (s || "").trim().toLowerCase().replace(/\s+/g, " ");
+        t = t.replace(/\bpemetan\b/g, "pemetaan");
+        return t;
+    }
     function samaTeks(a, b) { return normTeks(a) === normTeks(b); }
 
     // Pengelompokan Nama Kegiatan -> Kepala Seksi, SAMA PERSIS dgn kata kunci di renaksi-webapp.gs
