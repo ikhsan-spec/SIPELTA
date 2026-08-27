@@ -1037,8 +1037,7 @@
         { nama: "Kepala Seksi Survei dan Pemetaan", label: "Seksi 1", subLabel: "Survei dan Pemetaan",
           kataKunci: ["pengukuran", "pemetaan", "penataan", "surat ukur"] },
         { nama: "Kepala Seksi Penetapan Hak dan Pendaftaran", label: "Seksi 2", subLabel: "Penetapan Hak dan Pendaftaran",
-          kataKunci: ["pendaftaran tanah", "permohonan sk", "sertipikat pengganti",
-                      "buku tanah", "perubahan", "peralihan", "roya", "pendaftaran sk"] },
+          kataKunci: ["sertipikat pengganti", "buku tanah", "perubahan", "peralihan", "roya", "pendaftaran sk"] },
         { nama: "Kepala Seksi Penataan dan Pemberdayaan", label: "Seksi 3", subLabel: "Penataan Pertanahan",
           kataKunci: ["ptp"] },
         { nama: "Kepala Seksi Pengadaan Tanah dan Pengembangan", label: "Seksi 4", subLabel: "Pengadaan Tanah dan Pengembangan",
@@ -1048,7 +1047,7 @@
     // berkas saat ini — supaya HANYA dikirim ke SATU Kepala Seksi yang relevan (bawahannya), bukan dua-duanya
     // sekaligus. Kalau Posisi Terakhir sudah "Kepala Kantor Pertanahan", TIDAK masuk Seksi manapun (sudah
     // cukup terlihat di Rekapitulasi & panel di bawahnya).
-    const POSISI_DEPENDEN_KATA = ["hapusnya", "pemisahan", "pemecahan", "penggabungan"];
+    const POSISI_DEPENDEN_KATA = ["hapusnya", "pemisahan", "pemecahan", "penggabungan", "pendaftaran tanah", "permohonan sk"];
     const POSISI_DEPENDEN_SEKSI1_KATA = ["pengukuran", "pemetaan", "ukur"];
     const POSISI_DEPENDEN_SEKSI2_KATA = ["pendaftaran", "hak tanah", "buku tanah", "pemeliharaan"];
 
